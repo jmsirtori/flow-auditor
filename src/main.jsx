@@ -1,4 +1,4 @@
-// Digital Flow & SEO Auditor v1.0
+// Ignitia · SEO Auditor v1.0
 import React from "react";
 import { useState, useRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
@@ -37,7 +37,7 @@ III. CONTROL:
 
 function getStyle(title) {
   if (!title) return { bg: "#0d1117", border: "#30363d", accent: "#8b949e", tag: "INFO" };
-  if (title.includes("NOTAS") || title.includes("🛠")) return { bg: "#110a00", border: "#f0883e55", accent: "#f0883e", tag: "SOLO CONSULTOR" };
+  if (title.includes("NOTAS") || title.includes("🛠")) return { bg: "#110a00", border: "#FF450055", accent: "#FF4500", tag: "SOLO CONSULTOR" };
   if (title.includes("REPORTE") || title.includes("CLIENTE") || title.includes("📄")) return { bg: "#00091a", border: "#1f6feb88", accent: "#58a6ff", tag: "PARA EL CLIENTE" };
   if (title.includes("DICCI") || title.includes("DUEÑOS") || title.includes("📚")) return { bg: "#001a0a", border: "#23863688", accent: "#3fb950", tag: "GLOSARIO" };
   return { bg: "#0d1117", border: "#30363d", accent: "#8b949e", tag: "INFO" };
@@ -185,7 +185,7 @@ function App() {
       <div style={{ maxWidth: 420, width: "100%", background: "#0d1117", border: "1px solid #30363d", borderRadius: 12, padding: 32 }}>
         <div style={{ fontSize: 32, marginBottom: 12, textAlign: "center" }}>⚡</div>
         <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 18, color: "#e6edf3", textAlign: "center", marginBottom: 8 }}>
-          Digital Flow & SEO Auditor
+          Ignitia · SEO & Digital Presence Auditor
         </div>
         <div style={{ fontSize: 12, color: "#484f58", textAlign: "center", marginBottom: 28, lineHeight: 1.6 }}>
           Ingresa tu API Key de Anthropic para comenzar.<br />Se guarda solo en tu navegador.
@@ -199,7 +199,7 @@ function App() {
           onKeyDown={e => e.key === "Enter" && saveApiKey()}
           style={{ width: "100%", background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: "10px 14px", color: "#c9d1d9", fontFamily: "inherit", fontSize: 13, outline: "none", marginBottom: 16 }}
         />
-        <button onClick={saveApiKey} style={{ width: "100%", background: "#f0883e", border: "none", borderRadius: 8, padding: 12, color: "#060a10", fontFamily: "inherit", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+        <button onClick={saveApiKey} style={{ width: "100%", background: "#FF4500", border: "none", borderRadius: 8, padding: 12, color: "#060a10", fontFamily: "inherit", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
           COMENZAR →
         </button>
         <div style={{ fontSize: 10, color: "#30363d", textAlign: "center", marginTop: 14 }}>
@@ -219,13 +219,13 @@ function App() {
         @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.6)}}
         @keyframes blink{50%{opacity:0}}
-        .loading-bar{height:2px;border-radius:2px;background:linear-gradient(90deg,#f0883e,#58a6ff,#3fb950,#f0883e);background-size:300%;animation:shimmer 1.8s linear infinite}
+        .loading-bar{height:2px;border-radius:2px;background:linear-gradient(90deg,#FF4500,#58a6ff,#3fb950,#FF4500);background-size:300%;animation:shimmer 1.8s linear infinite}
         .anim{animation:fadeUp .3s ease both}
         .pulse-dot{width:7px;height:7px;border-radius:50%;background:#3fb950;display:inline-block;animation:pulse 2s ease infinite}
         .starter-btn{background:#0d1117;border:1px solid #21262d;color:#8b949e;padding:10px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:11px;transition:all .2s;text-align:left}
-        .starter-btn:hover{border-color:#f0883e;color:#f0883e;background:#140900}
-        .send-btn{background:#f0883e;border:none;color:#060a10;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;transition:all .2s}
-        .send-btn:hover:not(:disabled){background:#ffaa66;transform:translateY(-1px)}
+        .starter-btn:hover{border-color:#FF4500;color:#FF4500;background:#1a0800}
+        .send-btn{background:#FF4500;border:none;color:#060a10;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;transition:all .2s}
+        .send-btn:hover:not(:disabled){background:#FF6A33;transform:translateY(-1px)}
         .send-btn:disabled{opacity:.3;cursor:not-allowed}
         .body-text p{font-size:13px;line-height:1.75;margin-bottom:8px}
         .body-text strong{font-weight:600}
@@ -237,11 +237,11 @@ function App() {
 
       {/* Header */}
       <div style={{ padding: "14px 24px", borderBottom: "1px solid #161b22", display: "flex", alignItems: "center", gap: 12, background: "#0d1117", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg,#f0883e,#c45f00)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>⚡</div>
+        <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg,#FF4500,#c45f00)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>⚡</div>
         <div>
-          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e6edf3" }}>Digital Flow & SEO Auditor</div>
+          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e6edf3" }}>Ignitia · SEO & Digital Presence Auditor</div>
           <div style={{ fontSize: 10, color: "#484f58", display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-            <span className="pulse-dot" /> Flow Company · 2026
+            <span className="pulse-dot" /> Data-driven. Results-focused.
           </div>
         </div>
         <button onClick={() => { localStorage.removeItem("fc_api_key"); setShowSetup(true); setApiKey(""); }}
@@ -255,8 +255,8 @@ function App() {
         {messages.length === 0 && !loading && (
           <div style={{ textAlign: "center", padding: "40px 20px" }} className="anim">
             <div style={{ fontSize: 44, marginBottom: 10 }}>⚡</div>
-            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 20, fontWeight: 700, color: "#e6edf3", marginBottom: 8 }}>Digital Flow & SEO Auditor</div>
-            <div style={{ fontSize: 13, color: "#484f58", maxWidth: 380, margin: "0 auto 32px", lineHeight: 1.6 }}>Auditorías digitales de élite. Detecta fugas de atención, incoherencias de marca y debilidades SEO.</div>
+            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 20, fontWeight: 700, color: "#e6edf3", marginBottom: 8 }}>Ignitia · SEO & Digital Presence Auditor</div>
+            <div style={{ fontSize: 13, color: "#484f58", maxWidth: 380, margin: "0 auto 32px", lineHeight: 1.6 }}>Auditorías digitales que encienden tu visibilidad. Detecta fugas de atención, incoherencias de marca y debilidades SEO.</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10, maxWidth: 600, margin: "0 auto 32px" }}>
               {STARTERS.map(s => (
                 <button key={s.label} className="starter-btn" onClick={() => { setInput(s.template); textareaRef.current?.focus(); }}>
@@ -281,7 +281,7 @@ function App() {
             ) : (
               <div>
                 <div style={{ fontSize: 10, color: "#484f58", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ color: "#f0883e" }}>⚡</span> AUDITOR · REPORTE COMPLETO
+                  <span style={{ color: "#FF4500" }}>⚡</span> AUDITOR · REPORTE COMPLETO
                 </div>
                 {parseMarkdownSections(msg.content).map((section, si) => {
                   const s = getStyle(section.title);
@@ -304,7 +304,7 @@ function App() {
 
         {loading && (
           <div className="anim">
-            <div style={{ fontSize: 10, color: "#484f58", marginBottom: 10 }}><span style={{ color: "#f0883e" }}>⚡</span> AUDITOR · ANALIZANDO</div>
+            <div style={{ fontSize: 10, color: "#484f58", marginBottom: 10 }}><span style={{ color: "#FF4500" }}>⚡</span> AUDITOR · ANALIZANDO</div>
             <div style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 10, padding: 20 }}>
               <div className="loading-bar" style={{ marginBottom: 14 }} />
               <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 10 }}>{status}</div>
