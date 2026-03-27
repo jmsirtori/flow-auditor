@@ -1,9 +1,8 @@
-// Ignitia · SEO Auditor v1.0
-import React from "react";
-import { useState, useRef, useEffect } from "react";
+// Ignitia · SEO Auditor v2.0
+import React, { useState, useRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 
-const MASTER_PROMPT = `ROL: Eres el "Digital Growth Auditor", un estratega digital de élite inspirado en la metodología de Flow Company. Tu misión es auditar ecosistemas digitales para encontrar "fugas de atención", falta de coherencia y debilidades de posicionamiento (SEO).
+const MASTER_PROMPT = `ROL: Eres el "Digital Growth Auditor", un estratega digital de élite. Tu misión es auditar ecosistemas digitales para encontrar "fugas de atención", falta de coherencia y debilidades de posicionamiento (SEO).
 
 FILOSOFÍA: La visibilidad es un sistema conectado. Si un punto falla (web lenta, Google Business desactualizado, mensaje inconsistente), el cliente se pierde. No buscas errores; optimizas el flujo de dinero.
 
@@ -37,7 +36,7 @@ III. CONTROL:
 
 function getStyle(title) {
   if (!title) return { bg: "#0d1117", border: "#30363d", accent: "#8b949e", tag: "INFO" };
-  if (title.includes("NOTAS") || title.includes("🛠")) return { bg: "#110a00", border: "#FF450055", accent: "#FF4500", tag: "SOLO CONSULTOR" };
+  if (title.includes("NOTAS") || title.includes("🛠")) return { bg: "#110800", border: "#FF450055", accent: "#FF4500", tag: "SOLO CONSULTOR" };
   if (title.includes("REPORTE") || title.includes("CLIENTE") || title.includes("📄")) return { bg: "#00091a", border: "#1f6feb88", accent: "#58a6ff", tag: "PARA EL CLIENTE" };
   if (title.includes("DICCI") || title.includes("DUEÑOS") || title.includes("📚")) return { bg: "#001a0a", border: "#23863688", accent: "#3fb950", tag: "GLOSARIO" };
   return { bg: "#0d1117", border: "#30363d", accent: "#8b949e", tag: "INFO" };
@@ -81,13 +80,13 @@ async function runAuditLoop(apiMessages, apiKey, onStatus) {
   let msgs = [...apiMessages];
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     onStatus(turn === 0 ? "Conectando con el auditor..." : `Procesando búsqueda web (paso ${turn})...`);
-  const res = await fetch("/api/v1/messages", {
+    const res = await fetch("/api/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
-       "anthropic-dangerous-direct-browser-access": "true",
+        "anthropic-dangerous-direct-browser-access": "true",
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
@@ -131,22 +130,134 @@ const STARTERS = [
   { icon: "🚀", label: "Quick wins", template: "🚀 Dame 5 cambios rápidos para mejorar mi visibilidad. Mi sitio: [URL]" },
 ];
 
+function extractBusinessName(text) {
+  const match = text.match(/(?:negocio:|audita|audita mi negocio:?)\s*([^-\n]+)/i);
+  if (match) return match[1].trim();
+  return text.slice(0, 40).trim();
+}
+
+function formatDate(ts) {
+  return new Date(ts).toLocaleDateString("es-MX", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function HistoryPanel({ history, onSelect, onDelete, onClose }) {
+  return (
+    <div style={{
+      position: "fixed", top: 0, right: 0, bottom: 0, width: 320,
+      background: "#0d1117", borderLeft: "1px solid #21262d",
+      display: "flex", flexDirection: "column", zIndex: 200,
+      animation: "slideIn .2s ease",
+    }}>
+      <style>{`@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "#e6edf3" }}>📋 Historial</div>
+          <div style={{ fontSize: 10, color: "#484f58", marginTop: 2 }}>{history.length} auditoría{history.length !== 1 ? "s" : ""} guardada{history.length !== 1 ? "s" : ""}</div>
+        </div>
+        <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#484f58", cursor: "pointer", fontSize: 20 }}>×</button>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
+        {history.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#484f58", fontSize: 12 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>📭</div>
+            Aún no hay auditorías guardadas
+          </div>
+        ) : (
+          history.map((item) => (
+            <div key={item.id} style={{
+              background: "#161b22", border: "1px solid #21262d",
+              borderRadius: 8, padding: "12px 14px", marginBottom: 8,
+              cursor: "pointer", transition: "border-color .2s",
+            }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = "#FF4500"}
+              onMouseLeave={e => e.currentTarget.style.borderColor = "#21262d"}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div onClick={() => onSelect(item)} style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#e6edf3", marginBottom: 4 }}>{item.businessName}</div>
+                  <div style={{ fontSize: 10, color: "#484f58" }}>{formatDate(item.timestamp)}</div>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
+                  style={{ background: "transparent", border: "none", color: "#484f58", cursor: "pointer", fontSize: 14, padding: "0 0 0 8px" }}
+                  title="Eliminar"
+                >🗑</button>
+              </div>
+              <div onClick={() => onSelect(item)} style={{ fontSize: 10, color: "#30363d", marginTop: 6, lineHeight: 1.4 }}>
+                {item.query.slice(0, 60)}...
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {history.length > 0 && (
+        <div style={{ padding: 12, borderTop: "1px solid #21262d" }}>
+          <button
+            onClick={() => { if (confirm("¿Borrar todo el historial?")) { localStorage.removeItem("ignitia_history"); onDelete("all"); } }}
+            style={{ width: "100%", background: "transparent", border: "1px solid #30363d", color: "#484f58", padding: "8px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 11 }}
+          >
+            🗑 Borrar todo el historial
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("fc_api_key") || "");
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("ignitia_api_key") || "");
   const [apiKeyInput, setApiKeyInput] = useState("");
-  const [showSetup, setShowSetup] = useState(!localStorage.getItem("fc_api_key"));
+  const [showSetup, setShowSetup] = useState(!localStorage.getItem("ignitia_api_key"));
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ignitia_history") || "[]"); }
+    catch { return []; }
+  });
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
+  const saveToHistory = (query, result) => {
+    const newItem = {
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      businessName: extractBusinessName(query),
+      query,
+      result,
+    };
+    const updated = [newItem, ...history].slice(0, 50);
+    setHistory(updated);
+    localStorage.setItem("ignitia_history", JSON.stringify(updated));
+  };
+
+  const deleteFromHistory = (id) => {
+    if (id === "all") { setHistory([]); return; }
+    const updated = history.filter(h => h.id !== id);
+    setHistory(updated);
+    localStorage.setItem("ignitia_history", JSON.stringify(updated));
+  };
+
+  const loadFromHistory = (item) => {
+    setMessages([
+      { role: "user", content: item.query },
+      { role: "assistant", content: item.result },
+    ]);
+    setShowHistory(false);
+  };
+
   const saveApiKey = () => {
     if (!apiKeyInput.startsWith("sk-ant-")) return alert("La API Key debe empezar con sk-ant-");
-    localStorage.setItem("fc_api_key", apiKeyInput);
+    localStorage.setItem("ignitia_api_key", apiKeyInput);
     setApiKey(apiKeyInput);
     setShowSetup(false);
   };
@@ -165,6 +276,7 @@ function App() {
         setStatus
       );
       setMessages(prev => [...prev, { role: "assistant", content: result }]);
+      saveToHistory(userText, result);
     } catch (e) {
       setMessages(prev => [...prev, {
         role: "assistant",
@@ -183,13 +295,9 @@ function App() {
     <div style={{ fontFamily: "'IBM Plex Mono',monospace", background: "#060a10", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@700&display=swap');*{box-sizing:border-box;margin:0;padding:0}`}</style>
       <div style={{ maxWidth: 420, width: "100%", background: "#0d1117", border: "1px solid #30363d", borderRadius: 12, padding: 32 }}>
-        <div style={{ fontSize: 32, marginBottom: 12, textAlign: "center" }}>⚡</div>
-        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 18, color: "#e6edf3", textAlign: "center", marginBottom: 8 }}>
-          Ignitia · SEO & Digital Presence Auditor
-        </div>
-        <div style={{ fontSize: 12, color: "#484f58", textAlign: "center", marginBottom: 28, lineHeight: 1.6 }}>
-          Ingresa tu API Key de Anthropic para comenzar.<br />Se guarda solo en tu navegador.
-        </div>
+        <div style={{ fontSize: 32, marginBottom: 12, textAlign: "center" }}>🔥</div>
+        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 18, color: "#e6edf3", textAlign: "center", marginBottom: 4 }}>Ignitia · SEO Auditor</div>
+        <div style={{ fontSize: 11, color: "#FF4500", textAlign: "center", marginBottom: 24, letterSpacing: 1 }}>DATA-DRIVEN. RESULTS-FOCUSED.</div>
         <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 6 }}>API KEY DE ANTHROPIC</div>
         <input
           type="password"
@@ -199,8 +307,8 @@ function App() {
           onKeyDown={e => e.key === "Enter" && saveApiKey()}
           style={{ width: "100%", background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: "10px 14px", color: "#c9d1d9", fontFamily: "inherit", fontSize: 13, outline: "none", marginBottom: 16 }}
         />
-        <button onClick={saveApiKey} style={{ width: "100%", background: "#FF4500", border: "none", borderRadius: 8, padding: 12, color: "#060a10", fontFamily: "inherit", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-          COMENZAR →
+        <button onClick={saveApiKey} style={{ width: "100%", background: "#FF4500", border: "none", borderRadius: 8, padding: 12, color: "#fff", fontFamily: "inherit", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          ENCENDER AUDITOR →
         </button>
         <div style={{ fontSize: 10, color: "#30363d", textAlign: "center", marginTop: 14 }}>
           Consigue tu API Key en console.anthropic.com
@@ -219,12 +327,12 @@ function App() {
         @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.6)}}
         @keyframes blink{50%{opacity:0}}
-        .loading-bar{height:2px;border-radius:2px;background:linear-gradient(90deg,#FF4500,#58a6ff,#3fb950,#FF4500);background-size:300%;animation:shimmer 1.8s linear infinite}
+        .loading-bar{height:2px;border-radius:2px;background:linear-gradient(90deg,#FF4500,#ff6a33,#FF4500);background-size:300%;animation:shimmer 1.8s linear infinite}
         .anim{animation:fadeUp .3s ease both}
         .pulse-dot{width:7px;height:7px;border-radius:50%;background:#3fb950;display:inline-block;animation:pulse 2s ease infinite}
         .starter-btn{background:#0d1117;border:1px solid #21262d;color:#8b949e;padding:10px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:11px;transition:all .2s;text-align:left}
-        .starter-btn:hover{border-color:#FF4500;color:#FF4500;background:#1a0800}
-        .send-btn{background:#FF4500;border:none;color:#060a10;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;transition:all .2s}
+        .starter-btn:hover{border-color:#FF4500;color:#FF4500;background:#140900}
+        .send-btn{background:#FF4500;border:none;color:#fff;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;transition:all .2s}
         .send-btn:hover:not(:disabled){background:#FF6A33;transform:translateY(-1px)}
         .send-btn:disabled{opacity:.3;cursor:not-allowed}
         .body-text p{font-size:13px;line-height:1.75;margin-bottom:8px}
@@ -233,30 +341,37 @@ function App() {
         .body-text li{font-size:13px;line-height:1.65;margin-bottom:5px}
         textarea{background:transparent;border:none;outline:none;color:#c9d1d9;font-family:inherit;font-size:13px;resize:none;width:100%;line-height:1.6}
         textarea::placeholder{color:#3d444d}
+        .history-btn{background:transparent;border:1px solid #21262d;color:#484f58;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:10px;transition:all .2s;display:flex;align-items:center;gap:5px}
+        .history-btn:hover{border-color:#FF4500;color:#FF4500}
       `}</style>
 
       {/* Header */}
-      <div style={{ padding: "14px 24px", borderBottom: "1px solid #161b22", display: "flex", alignItems: "center", gap: 12, background: "#0d1117", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg,#FF4500,#c45f00)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>⚡</div>
+      <div style={{ padding: "14px 24px", borderBottom: "1px solid #161b22", display: "flex", alignItems: "center", gap: 12, background: "#0d1117", position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg,#FF4500,#c43300)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>🔥</div>
         <div>
-          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e6edf3" }}>Ignitia · SEO & Digital Presence Auditor</div>
-          <div style={{ fontSize: 10, color: "#484f58", display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-            <span className="pulse-dot" /> Data-driven. Results-focused.
-          </div>
+          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e6edf3" }}>Ignitia · SEO Auditor</div>
+          <div style={{ fontSize: 10, color: "#FF4500", marginTop: 2, letterSpacing: 1 }}>DATA-DRIVEN. RESULTS-FOCUSED.</div>
         </div>
-        <button onClick={() => { localStorage.removeItem("fc_api_key"); setShowSetup(true); setApiKey(""); }}
-          style={{ marginLeft: "auto", background: "transparent", border: "1px solid #21262d", color: "#484f58", padding: "5px 10px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 10 }}>
-          ⚙ API Key
-        </button>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          <button className="history-btn" onClick={() => setShowHistory(true)}>
+            📋 Historial {history.length > 0 && <span style={{ background: "#FF4500", color: "#fff", borderRadius: 10, padding: "1px 6px", fontSize: 9 }}>{history.length}</span>}
+          </button>
+          <button onClick={() => { localStorage.removeItem("ignitia_api_key"); setShowSetup(true); setApiKey(""); }}
+            style={{ background: "transparent", border: "1px solid #21262d", color: "#484f58", padding: "5px 10px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 10 }}>
+            ⚙ API Key
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px 8px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 820, width: "100%", margin: "0 auto" }}>
         {messages.length === 0 && !loading && (
           <div style={{ textAlign: "center", padding: "40px 20px" }} className="anim">
-            <div style={{ fontSize: 44, marginBottom: 10 }}>⚡</div>
-            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 20, fontWeight: 700, color: "#e6edf3", marginBottom: 8 }}>Ignitia · SEO & Digital Presence Auditor</div>
-            <div style={{ fontSize: 13, color: "#484f58", maxWidth: 380, margin: "0 auto 32px", lineHeight: 1.6 }}>Auditorías digitales que encienden tu visibilidad. Detecta fugas de atención, incoherencias de marca y debilidades SEO.</div>
+            <div style={{ fontSize: 44, marginBottom: 10 }}>🔥</div>
+            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 20, fontWeight: 700, color: "#e6edf3", marginBottom: 8 }}>Ignitia · SEO Auditor</div>
+            <div style={{ fontSize: 13, color: "#484f58", maxWidth: 380, margin: "0 auto 32px", lineHeight: 1.6 }}>
+              Auditorías digitales que encienden tu visibilidad. Detecta fugas de atención, incoherencias de marca y debilidades SEO.
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10, maxWidth: 600, margin: "0 auto 32px" }}>
               {STARTERS.map(s => (
                 <button key={s.label} className="starter-btn" onClick={() => { setInput(s.template); textareaRef.current?.focus(); }}>
@@ -266,6 +381,11 @@ function App() {
                 </button>
               ))}
             </div>
+            {history.length > 0 && (
+              <button className="history-btn" style={{ margin: "0 auto" }} onClick={() => setShowHistory(true)}>
+                📋 Ver {history.length} auditoría{history.length !== 1 ? "s" : ""} guardada{history.length !== 1 ? "s" : ""}
+              </button>
+            )}
           </div>
         )}
 
@@ -281,7 +401,7 @@ function App() {
             ) : (
               <div>
                 <div style={{ fontSize: 10, color: "#484f58", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ color: "#FF4500" }}>⚡</span> AUDITOR · REPORTE COMPLETO
+                  <span style={{ color: "#FF4500" }}>🔥</span> IGNITIA · REPORTE COMPLETO
                 </div>
                 {parseMarkdownSections(msg.content).map((section, si) => {
                   const s = getStyle(section.title);
@@ -304,7 +424,7 @@ function App() {
 
         {loading && (
           <div className="anim">
-            <div style={{ fontSize: 10, color: "#484f58", marginBottom: 10 }}><span style={{ color: "#FF4500" }}>⚡</span> AUDITOR · ANALIZANDO</div>
+            <div style={{ fontSize: 10, color: "#484f58", marginBottom: 10 }}><span style={{ color: "#FF4500" }}>🔥</span> IGNITIA · ANALIZANDO</div>
             <div style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 10, padding: 20 }}>
               <div className="loading-bar" style={{ marginBottom: 14 }} />
               <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 10 }}>{status}</div>
@@ -333,15 +453,30 @@ function App() {
         )}
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", background: "#161b22", border: "1px solid #30363d", borderRadius: 10, padding: "12px 14px" }}>
           <textarea ref={textareaRef} rows={2} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey}
-            placeholder="Ej: 🔍 Audita mi negocio: Flow Company - https://flowcompany.mx" />
+            placeholder="Ej: 🔍 Audita mi negocio: Ignitia - https://ignitia.mx" />
           <button className="send-btn" onClick={() => sendMessage()} disabled={loading || !input.trim()}>
             {loading ? "AUDITANDO..." : "AUDITAR →"}
           </button>
         </div>
+        <div style={{ fontSize: 9, color: "#21262d", textAlign: "center", marginTop: 8, letterSpacing: 1 }}>
+          IGNITIA · SEO AUDITOR · DATA-DRIVEN. RESULTS-FOCUSED.
+        </div>
       </div>
+
+      {/* History Panel */}
+      {showHistory && (
+        <>
+          <div onClick={() => setShowHistory(false)} style={{ position: "fixed", inset: 0, background: "#00000066", zIndex: 199 }} />
+          <HistoryPanel
+            history={history}
+            onSelect={loadFromHistory}
+            onDelete={deleteFromHistory}
+            onClose={() => setShowHistory(false)}
+          />
+        </>
+      )}
     </div>
   );
 }
 
 createRoot(document.getElementById("root")).render(<App />);
-
