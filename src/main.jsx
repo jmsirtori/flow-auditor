@@ -343,16 +343,3 @@ function App() {
 
 createRoot(document.getElementById("root")).render(<App />);
 ```
-
-4. Haz clic en **"Commit changes"** → **"Commit changes"**
-
----
-
-Cuando esté listo, verifica que tu repositorio se vea así antes de continuar:
-```
-flow-auditor/
-├── 📁 src/
-│   └── main.jsx
-├── index.html
-├── package.json
-└── README.md
