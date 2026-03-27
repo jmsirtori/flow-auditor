@@ -81,7 +81,7 @@ async function runAuditLoop(apiMessages, apiKey, onStatus) {
   let msgs = [...apiMessages];
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     onStatus(turn === 0 ? "Conectando con el auditor..." : `Procesando búsqueda web (paso ${turn})...`);
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
