@@ -1,3 +1,4 @@
+// Digital Flow & SEO Auditor v1.0
 import React from "react";
 import { useState, useRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
