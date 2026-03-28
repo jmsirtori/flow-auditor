@@ -56,6 +56,26 @@ Calificación 1-10 de Fricción (donde 1 = muy fácil comprar, 10 = imposible en
 ### 🔍 Los Baches en el Camino
 ### 🏗️ Tu Letrero Principal (H1)
 ### 🚀 Plan de Quick Wins (60 min)
+Presenta exactamente 5 acciones en formato de tabla Markdown con estas columnas:
+| Acción | Dónde hacerlo | Tiempo | Impacto |
+|--------|---------------|--------|---------|
+- Acción: qué hacer, explicado en lenguaje simple sin tecnicismos
+- Dónde hacerlo: la plataforma o lugar exacto (ej: Google Business, Instagram, WordPress)
+- Tiempo: estimado realista en minutos (ej: 10 min, 30 min)
+- Impacto: Alto, Medio o Bajo
+Ordena de mayor a menor impacto.
+
+## 🏆 BENCHMARK COMPETITIVO
+Identifica los 2 competidores principales que aparecen en el Top 3 de Google para las keywords clave del negocio auditado. Para cada uno incluye:
+- Nombre y URL
+- 2-3 cosas que hacen mejor que el negocio auditado
+- Sus keywords principales
+- Su score de fricción estimado vs el del negocio auditado
+Al final incluye:
+- **Brecha principal:** lo que ellos tienen y el negocio no
+- **Oportunidad inmediata:** la acción más rápida para cerrar esa brecha
+
+## 📚 DICCIONARIO PARA DUEÑOS
 
 ## 📚 DICCIONARIO PARA DUEÑOS
 Define H1, SEO, NAP, Keywords, Fricción con analogías simples.
