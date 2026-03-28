@@ -1,5 +1,5 @@
-// Ignitia · SEO Auditor v5.0
-import React, { useState, useRef, useEffect } from "react";
+// Ignitia · SEO Auditor v6.0 — Full UX Update
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 
 // ─── Storage ───────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ I. PROTOCOLO DE AUDITORÍA:
 3. Diagnóstico de Fricción Web: Identifica H1. Si depende de JavaScript, márcalo como "Persiana Cerrada para Google".
 4. Flujo Conectado: Revisa si los enlaces en Redes Sociales son estratégicos.
 
-II. ESTRUCTURA DE RESPUESTA (usa exactamente estos encabezados):
+II. ESTRUCTURA DE RESPUESTA:
 
 ## 🛠️ NOTAS INTERNAS
 Tono técnico para el consultor.
@@ -54,30 +54,24 @@ Calificación 1-10 de Fricción (donde 1 = muy fácil encontrarte, 10 = imposibl
 ### 🔍 Los Baches en el Camino
 ### 🏗️ Tu Letrero Principal (H1)
 ### 🚀 Plan de Quick Wins (60 min)
-Presenta exactamente 5 acciones en formato de tabla Markdown con estas columnas:
+Presenta exactamente 5 acciones en formato de tabla Markdown:
 | Acción | Dónde hacerlo | Tiempo | Impacto |
 |--------|---------------|--------|---------|
-- Acción: qué hacer en lenguaje simple
-- Dónde hacerlo: plataforma exacta (ej: Google Business, Instagram, WordPress)
-- Tiempo: estimado en minutos (ej: 10 min)
-- Impacto: Alto, Medio o Bajo
-Ordena de mayor a menor impacto.
+Ordena de mayor a menor impacto. Impacto puede ser: Alto, Medio o Bajo.
 
 ## 🏆 BENCHMARK COMPETITIVO
-Identifica los 2 competidores principales que aparecen en el Top 3 de Google para las keywords clave del negocio. Para cada uno incluye:
+Identifica los 2 competidores principales en el Top 3 de Google. Para cada uno:
 - Nombre y URL
 - 2-3 cosas que hacen mejor que el negocio auditado
 - Sus keywords principales
-- Su score de fricción estimado vs el del negocio auditado
-Al final incluye:
-- **Brecha principal:** lo que ellos tienen y el negocio no
-- **Oportunidad inmediata:** la acción más rápida para cerrar esa brecha
+- Su score de fricción estimado
+Al final: **Brecha principal** y **Oportunidad inmediata**.
 
 ## 📚 DICCIONARIO PARA DUEÑOS
 Define H1, SEO, NAP, Keywords, Fricción con analogías simples.
 
-III. INSTRUCCIÓN CRÍTICA — AL FINAL DE CADA REPORTE:
-Después del diccionario, agrega SIEMPRE esta línea exacta:
+III. INSTRUCCIÓN CRÍTICA:
+Al final agrega siempre:
 IGNITIA_SCORE: [número del 1 al 10]
 
 IV. CONTROL:
@@ -93,7 +87,6 @@ function getStyle(title) {
   if (title.includes("DICCI") || title.includes("DUEÑOS") || title.includes("📚")) return { bg: "#001a0a", border: "#23863688", accent: "#3fb950", tag: "GLOSARIO" };
   return { bg: "#0d1117", border: "#30363d", accent: "#8b949e", tag: "INFO" };
 }
-
 function parseMarkdownSections(text) {
   const clean = text.replace(/IGNITIA_SCORE:\s*\d+(?:\.\d+)?/g, "").trim();
   const sections = [], lines = clean.split("\n");
@@ -106,49 +99,23 @@ function parseMarkdownSections(text) {
   if (current) sections.push(current);
   return sections.filter(s => s.title || s.content.join("").trim());
 }
-
 function formatInline(text) {
   return text
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>");
 }
-
 function renderMd(raw) {
   const lines = raw.split("\n");
-  let html = "";
-  let i = 0;
+  let html = "", i = 0;
   while (i < lines.length) {
     const line = lines[i];
     if (line.trim().startsWith("|") && lines[i + 1]?.trim().startsWith("|---")) {
       const headers = line.trim().split("|").filter(c => c.trim()).map(c => c.trim());
       i += 2;
       let rows = [];
-      while (i < lines.length && lines[i].trim().startsWith("|")) {
-        rows.push(lines[i].trim().split("|").filter(c => c.trim()).map(c => c.trim()));
-        i++;
-      }
-      html += `<div style="overflow-x:auto;margin:12px 0">
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead>
-            <tr style="border-bottom:1px solid #30363d">
-              ${headers.map(h => `<th style="text-align:left;padding:8px 12px;color:#8b949e;font-weight:600;white-space:nowrap">${formatInline(h)}</th>`).join("")}
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map((row, ri) => `
-              <tr style="border-bottom:1px solid #161b22;${ri % 2 === 0 ? "background:#ffffff08" : ""}">
-                ${row.map(cell => {
-                  const impactColor = cell === "Alto" ? "#3fb950" : cell === "Medio" ? "#d29922" : cell === "Bajo" ? "#8b949e" : cell === "Crítico" ? "#f85149" : null;
-                  const cellHtml = impactColor
-                    ? `<span style="background:${impactColor}22;color:${impactColor};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${cell}</span>`
-                    : formatInline(cell);
-                  return `<td style="padding:8px 12px;color:#c9d1d9;vertical-align:top">${cellHtml}</td>`;
-                }).join("")}
-              </tr>`).join("")}
-          </tbody>
-        </table>
-      </div>`;
+      while (i < lines.length && lines[i].trim().startsWith("|")) { rows.push(lines[i].trim().split("|").filter(c => c.trim()).map(c => c.trim())); i++; }
+      html += `<div style="overflow-x:auto;margin:12px 0"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid #30363d">${headers.map(h => `<th style="text-align:left;padding:8px 12px;color:#8b949e;font-weight:600;white-space:nowrap">${formatInline(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row, ri) => `<tr style="border-bottom:1px solid #161b22;${ri % 2 === 0 ? "background:#ffffff08" : ""}">${row.map(cell => { const ic = cell === "Alto" ? "#3fb950" : cell === "Medio" ? "#d29922" : cell === "Bajo" ? "#8b949e" : cell === "Crítico" ? "#f85149" : null; return `<td style="padding:8px 12px;color:#c9d1d9;vertical-align:top">${ic ? `<span style="background:${ic}22;color:${ic};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${cell}</span>` : formatInline(cell)}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div>`;
       continue;
     }
     if (line.startsWith("### ")) { html += `<h4 style="font-size:13px;font-weight:700;margin:16px 0 8px;color:#c9d1d9">${formatInline(line.slice(4))}</h4>`; i++; continue; }
@@ -194,12 +161,6 @@ async function runAuditLoop(apiMessages, apiKey, onStatus, systemOverride) {
   throw new Error("Demasiados pasos. Intenta con una consulta más específica.");
 }
 
-const STARTERS = [
-  { icon: "🔍", label: "Auditar negocio", template: "🔍 Audita mi negocio: [Nombre] - [URL]" },
-  { icon: "🎯", label: "Keywords reales", template: "🎯 ¿Por qué palabras clave me encuentra la gente? Mi negocio: [descripción y ciudad]" },
-  { icon: "🚀", label: "Quick wins", template: "🚀 Dame 5 cambios rápidos para mejorar mi visibilidad. Mi sitio: [URL]" },
-];
-
 // ─── Score badge ───────────────────────────────────────────────────
 function ScoreBadge({ score }) {
   if (!score) return null;
@@ -215,21 +176,34 @@ function ScoreBadge({ score }) {
   );
 }
 
-// ─── Logo clickeable ───────────────────────────────────────────────
-function NavLogo({ onClick }) {
+// ─── Toast ─────────────────────────────────────────────────────────
+function Toast({ message, onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, []);
+  return (
+    <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 500, display: "flex", alignItems: "center", gap: 10, background: "#161b22", border: "1px solid #3fb95066", borderRadius: 10, padding: "12px 18px", boxShadow: "0 4px 20px #00000066", whiteSpace: "nowrap", animation: "fadeUp .3s ease" }}>
+      <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#3fb95022", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#3fb950" }}>✓</div>
+      <div>
+        <div style={{ color: "#3fb950", fontSize: 12, fontWeight: 600 }}>{message}</div>
+      </div>
+      <div onClick={onClose} style={{ color: "#30363d", fontSize: 16, cursor: "pointer", marginLeft: 8 }}>×</div>
+    </div>
+  );
+}
+
+// ─── NavLogo ───────────────────────────────────────────────────────
+function NavLogo({ onClick, clientName }) {
   const [hover, setHover] = useState(false);
   return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", opacity: hover ? 0.8 : 1, transition: "opacity .2s" }}
-    >
+    <div onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", opacity: hover ? 0.75 : 1, transition: "opacity .2s" }}>
       <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg,#FF4500,#c43300)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🔥</div>
       <div>
-        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e6edf3" }}>Ignitia · SEO Auditor</div>
+        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14, color: "#e6edf3", display: "flex", alignItems: "center", gap: 8 }}>
+          Ignitia · SEO Auditor
+          {clientName && <span style={{ fontSize: 11, color: "#FF4500", fontWeight: 400 }}>· {clientName}</span>}
+        </div>
         <div style={{ fontSize: 10, color: "#484f58", display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#3fb950", display: "inline-block", animation: "pulse 2s ease infinite" }} />
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#3fb950", display: "inline-block" }} />
           Data-driven. Results-focused.
         </div>
       </div>
@@ -237,12 +211,85 @@ function NavLogo({ onClick }) {
   );
 }
 
+// ─── Hamburger menu ────────────────────────────────────────────────
+function HamburgerMenu({ items }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button onClick={() => setOpen(o => !o)} style={{ background: "transparent", border: "1px solid #21262d", borderRadius: 6, padding: "7px 10px", cursor: "pointer", display: "flex", flexDirection: "column", gap: 3 }}>
+        {[0,1,2].map(i => <span key={i} style={{ width: 16, height: 1.5, background: "#8b949e", borderRadius: 1, display: "block" }} />)}
+      </button>
+      {open && (
+        <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", background: "#0d1117", border: "1px solid #30363d", borderRadius: 10, overflow: "hidden", minWidth: 160, zIndex: 100, boxShadow: "0 8px 24px #000000aa" }}>
+          {items.map((item, i) => (
+            <button key={i} onClick={() => { item.onClick(); setOpen(false); }}
+              style={{ width: "100%", background: "transparent", border: "none", borderBottom: i < items.length - 1 ? "1px solid #161b22" : "none", color: item.danger ? "#f85149" : "#c9d1d9", padding: "11px 16px", cursor: "pointer", fontFamily: "inherit", fontSize: 12, textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13 }}>{item.icon}</span> {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Starter cards con campos editables ───────────────────────────
+function StarterCard({ icon, label, fields, onSubmit }) {
+  const [expanded, setExpanded] = useState(false);
+  const [values, setValues] = useState(fields.reduce((a, f) => ({ ...a, [f.key]: "" }), {}));
+  if (!expanded) return (
+    <button onClick={() => setExpanded(true)} style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 8, padding: "12px", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all .2s", width: "100%" }}
+      onMouseOver={e => { e.currentTarget.style.borderColor = "#FF4500"; e.currentTarget.style.background = "#1a0800"; }}
+      onMouseOut={e => { e.currentTarget.style.borderColor = "#21262d"; e.currentTarget.style.background = "#0d1117"; }}>
+      <div style={{ fontSize: 18, marginBottom: 6 }}>{icon}</div>
+      <div style={{ fontWeight: 600, color: "#c9d1d9", fontSize: 11, marginBottom: 4 }}>{label}</div>
+      <div style={{ color: "#484f58", fontSize: 10 }}>Haz clic para configurar</div>
+    </button>
+  );
+  return (
+    <div style={{ background: "#0d1117", border: "1px solid #FF450055", borderRadius: 8, padding: "14px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: 14 }}>{icon}</span>
+        <span style={{ color: "#FF4500", fontSize: 11, fontWeight: 600 }}>{label}</span>
+        <button onClick={() => setExpanded(false)} style={{ marginLeft: "auto", background: "transparent", border: "none", color: "#484f58", cursor: "pointer", fontSize: 14 }}>×</button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {fields.map(f => (
+          <div key={f.key}>
+            <div style={{ fontSize: 9, color: "#484f58", marginBottom: 4, letterSpacing: 1 }}>{f.label}</div>
+            <input value={values[f.key]} onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))}
+              placeholder={f.placeholder}
+              onKeyDown={e => e.key === "Enter" && onSubmit(values)}
+              style={{ width: "100%", background: "#161b22", border: "1px solid #30363d", borderRadius: 6, padding: "8px 10px", color: "#c9d1d9", fontFamily: "inherit", fontSize: 11, outline: "none" }} />
+          </div>
+        ))}
+        <button onClick={() => onSubmit(values)}
+          style={{ background: "#FF4500", border: "none", color: "#fff", padding: "8px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 700, marginTop: 4 }}>
+          Auditar →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const STARTER_CONFIGS = [
+  { icon: "🔍", label: "Auditar negocio", fields: [{ key: "nombre", label: "NOMBRE", placeholder: "Ej: Paseo Interlomas" }, { key: "url", label: "URL", placeholder: "Ej: https://paseointerlomas.mx" }], build: v => `🔍 Audita mi negocio: ${v.nombre} - ${v.url}` },
+  { icon: "🎯", label: "Keywords reales", fields: [{ key: "negocio", label: "NEGOCIO Y CIUDAD", placeholder: "Ej: Dentista en Naucalpan, CDMX" }], build: v => `🎯 ¿Por qué palabras clave me encuentra la gente? Mi negocio: ${v.negocio}` },
+  { icon: "🚀", label: "Quick wins", fields: [{ key: "url", label: "URL DEL SITIO", placeholder: "Ej: https://tusitio.mx" }], build: v => `🚀 Dame 5 cambios rápidos para mejorar mi visibilidad. Mi sitio: ${v.url}` },
+];
+
 // ─── Dashboard ─────────────────────────────────────────────────────
 function Dashboard({ onNewAudit, onSelectClient }) {
   const clients = loadClients();
   const history = loadHistory();
   const scored = history.filter(h => h.score);
-  const avgScore = scored.length ? (scored.reduce((a, b) => a + b.score, 0) / scored.length).toFixed(1) : "—";
+  const avgScore = scored.length ? (scored.reduce((a, b) => a + b.score, 0) / scored.length).toFixed(1) : null;
   const thisMonth = history.filter(h => { const d = new Date(h.id); const now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
   const improved = clients.filter(c => { const audits = getClientAudits(c.id).filter(a => a.score); if (audits.length < 2) return false; return audits[0].score > audits[1].score; }).length;
   const chartClients = clients.filter(c => c.lastScore).slice(0, 8);
@@ -255,30 +302,30 @@ function Dashboard({ onNewAudit, onSelectClient }) {
     if (!ctx) return;
     window.ignitiaChart = new window.Chart(ctx, {
       type: "bar",
-      data: {
-        labels: chartClients.map(c => c.name.length > 12 ? c.name.slice(0, 12) + "…" : c.name),
-        datasets: [{ data: chartClients.map(c => c.lastScore), backgroundColor: chartClients.map(c => c.lastScore <= 4 ? "#E24B4A" : c.lastScore <= 7 ? "#EF9F27" : "#639922"), borderRadius: 4 }]
-      },
+      data: { labels: chartClients.map(c => c.name.length > 12 ? c.name.slice(0, 12) + "…" : c.name), datasets: [{ data: chartClients.map(c => c.lastScore), backgroundColor: chartClients.map(c => c.lastScore <= 4 ? "#E24B4A" : c.lastScore <= 7 ? "#EF9F27" : "#639922"), borderRadius: 4 }] },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 10, ticks: { stepSize: 2, color: "#666" }, grid: { color: "rgba(128,128,128,0.1)" } }, x: { ticks: { color: "#666", font: { size: 11 }, autoSkip: false, maxRotation: 30 }, grid: { display: false } } } }
     });
   }, [clients.length]);
+
+  const isEmpty = clients.length === 0;
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
         <div>
           <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 20, color: "#e6edf3" }}>Dashboard</div>
-          <div style={{ fontSize: 11, color: "#484f58", marginTop: 3 }}>Ignitia · SEO Auditor · Data-driven. Results-focused.</div>
+          <div style={{ fontSize: 11, color: "#484f58", marginTop: 3 }}>Ignitia · SEO Auditor</div>
         </div>
         <button onClick={onNewAudit} style={{ background: "#FF4500", border: "none", color: "#fff", padding: "10px 18px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 700 }}>+ Nueva auditoría</button>
       </div>
 
+      {/* Metric cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 12, marginBottom: 24 }}>
         {[
-          { label: "Clientes activos", value: clients.length, color: "#e6edf3" },
-          { label: "Auditorías este mes", value: thisMonth, color: "#e6edf3" },
-          { label: "Score promedio", value: avgScore !== "—" ? `${avgScore}/10` : "—", color: Number(avgScore) <= 4 ? "#E24B4A" : Number(avgScore) <= 7 ? "#EF9F27" : "#3fb950" },
-          { label: "Mejoraron este mes", value: improved, color: "#3fb950" },
+          { label: "Clientes activos", value: clients.length, color: clients.length ? "#e6edf3" : "#30363d" },
+          { label: "Auditorías este mes", value: thisMonth, color: thisMonth ? "#e6edf3" : "#30363d" },
+          { label: "Score promedio", value: avgScore ? `${avgScore}/10` : "—", color: avgScore ? (avgScore <= 4 ? "#E24B4A" : avgScore <= 7 ? "#EF9F27" : "#3fb950") : "#30363d" },
+          { label: "Mejoraron este mes", value: improved, color: improved ? "#3fb950" : "#30363d" },
         ].map(m => (
           <div key={m.label} style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 8, padding: "14px 16px" }}>
             <div style={{ fontSize: 11, color: "#484f58", marginBottom: 8 }}>{m.label}</div>
@@ -287,61 +334,66 @@ function Dashboard({ onNewAudit, onSelectClient }) {
         ))}
       </div>
 
-      {chartClients.length > 0 && (
-        <div style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 10, padding: 20, marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#c9d1d9", marginBottom: 12 }}>Score de fricción por cliente</div>
-          <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: 11, color: "#484f58" }}>
-            {[["#E24B4A", "Crítico (1-4)"], ["#EF9F27", "Regular (5-7)"], ["#639922", "Bueno (8-10)"]].map(([color, label]) => (
-              <span key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 2, background: color, display: "inline-block" }} />{label}
-              </span>
-            ))}
+      {/* Empty state */}
+      {isEmpty ? (
+        <div style={{ background: "#0d1117", border: "1px dashed #30363d", borderRadius: 12, padding: "64px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 14 }}>🔥</div>
+          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 16, color: "#e6edf3", marginBottom: 8 }}>Haz tu primera auditoría</div>
+          <div style={{ color: "#484f58", fontSize: 13, lineHeight: 1.7, marginBottom: 28, maxWidth: 380, margin: "0 auto 28px" }}>
+            Ingresa el nombre y URL de un negocio para generar tu primer reporte de visibilidad digital con IA
           </div>
-          <div style={{ position: "relative", height: 200 }}><canvas id="dashChart" /></div>
+          <button onClick={onNewAudit} style={{ background: "#FF4500", border: "none", color: "#fff", padding: "12px 24px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700 }}>
+            + Empezar auditoría
+          </button>
         </div>
-      )}
-
-      <div style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 10, overflow: "hidden" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#c9d1d9" }}>Todos los clientes</div>
-          <div style={{ fontSize: 10, color: "#484f58" }}>{clients.length} registrados</div>
-        </div>
-        {clients.length === 0 ? (
-          <div style={{ padding: "48px 20px", textAlign: "center", color: "#484f58" }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>👥</div>
-            <div style={{ fontSize: 13 }}>Aún no tienes clientes guardados</div>
-            <div style={{ fontSize: 11, marginTop: 6 }}>Haz una auditoría y guarda el negocio como cliente</div>
-          </div>
-        ) : (
-          <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", tableLayout: "fixed" }}>
-            <thead>
-              <tr style={{ background: "#0a0e15" }}>
-                {["Cliente", "Sector", "Score", "Auditorías", "Última auditoría"].map((h, i) => (
-                  <th key={h} style={{ textAlign: i >= 2 && i <= 3 ? "center" : "left", padding: "10px 16px", color: "#484f58", fontWeight: 400, width: ["28%","20%","18%","14%","20%"][i] }}>{h}</th>
+      ) : (
+        <>
+          {chartClients.length > 0 && (
+            <div style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 10, padding: 20, marginBottom: 24 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#c9d1d9", marginBottom: 12 }}>Score de fricción por cliente</div>
+              <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: 11, color: "#484f58" }}>
+                {[["#E24B4A","Crítico (1-4)"],["#EF9F27","Regular (5-7)"],["#639922","Bueno (8-10)"]].map(([color, label]) => (
+                  <span key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 2, background: color, display: "inline-block" }} />{label}
+                  </span>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {clients.map(client => {
-                const audits = getClientAudits(client.id);
-                return (
-                  <tr key={client.id} onClick={() => onSelectClient(client)} style={{ borderTop: "1px solid #161b22", cursor: "pointer" }}
-                    onMouseOver={e => e.currentTarget.style.background = "#0d1420"}
-                    onMouseOut={e => e.currentTarget.style.background = ""}>
-                    <td style={{ padding: "12px 16px", color: "#e6edf3", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.name}</td>
-                    <td style={{ padding: "12px 16px", color: "#484f58", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.sector}</td>
-                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                      {client.lastScore ? <ScoreBadge score={client.lastScore} /> : <span style={{ color: "#30363d", fontSize: 11 }}>Sin score</span>}
-                    </td>
-                    <td style={{ padding: "12px 16px", textAlign: "center", color: "#484f58" }}>{audits.length}</td>
-                    <td style={{ padding: "12px 16px", color: "#484f58", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.lastAudit || "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </div>
+              <div style={{ position: "relative", height: 200 }}><canvas id="dashChart" /></div>
+            </div>
+          )}
+          <div style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#c9d1d9" }}>Todos los clientes</div>
+              <div style={{ fontSize: 10, color: "#484f58" }}>{clients.length} registrados</div>
+            </div>
+            <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", tableLayout: "fixed" }}>
+              <thead>
+                <tr style={{ background: "#0a0e15" }}>
+                  {["Cliente","Sector","Score","Auditorías","Última auditoría"].map((h, i) => (
+                    <th key={h} style={{ textAlign: i >= 2 && i <= 3 ? "center" : "left", padding: "10px 16px", color: "#484f58", fontWeight: 400, width: ["28%","20%","18%","14%","20%"][i] }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {clients.map(client => {
+                  const audits = getClientAudits(client.id);
+                  return (
+                    <tr key={client.id} onClick={() => onSelectClient(client)} style={{ borderTop: "1px solid #161b22", cursor: "pointer" }}
+                      onMouseOver={e => e.currentTarget.style.background = "#0d1420"}
+                      onMouseOut={e => e.currentTarget.style.background = ""}>
+                      <td style={{ padding: "12px 16px", color: "#e6edf3", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.name}</td>
+                      <td style={{ padding: "12px 16px", color: "#484f58", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.sector}</td>
+                      <td style={{ padding: "12px 16px", textAlign: "center" }}>{client.lastScore ? <ScoreBadge score={client.lastScore} /> : <span style={{ color: "#30363d", fontSize: 11 }}>Sin score</span>}</td>
+                      <td style={{ padding: "12px 16px", textAlign: "center", color: "#484f58" }}>{audits.length}</td>
+                      <td style={{ padding: "12px 16px", color: "#484f58", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.lastAudit || "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -407,12 +459,22 @@ function ReauditModal({ client, onCompare, onFresh, onCancel }) {
   );
 }
 
-// ─── History panel ─────────────────────────────────────────────────
+// ─── History panel con búsqueda ────────────────────────────────────
 function HistoryPanel({ onClose, onLoad }) {
   const [history, setHistory] = useState(loadHistory());
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("todos");
   const clients = loadClients();
   const getClientName = id => { const c = clients.find(c => c.id === id); return c ? c.name : null; };
   const handleDelete = id => { const u = history.filter(e => e.id !== id); localStorage.setItem("ignitia_history", JSON.stringify(u)); setHistory(u); };
+
+  const filtered = history.filter(e => {
+    const name = getClientName(e.clientId) || "";
+    const matchSearch = !search || e.query.toLowerCase().includes(search.toLowerCase()) || name.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === "todos" || (filter === "cliente" && e.clientId) || (filter === "critico" && e.score && e.score <= 4) || (filter === "mes" && (() => { const d = new Date(e.id); const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear(); })());
+    return matchSearch && matchFilter;
+  });
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "#060a10", zIndex: 200, display: "flex", flexDirection: "column", fontFamily: "'IBM Plex Mono',monospace" }}>
       <nav style={{ padding: "14px 24px", borderBottom: "1px solid #161b22", display: "flex", alignItems: "center", gap: 12, background: "#0d1117" }}>
@@ -420,12 +482,29 @@ function HistoryPanel({ onClose, onLoad }) {
         <button onClick={onClose} style={{ marginLeft: "auto", background: "transparent", border: "1px solid #21262d", color: "#8b949e", padding: "6px 14px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 11 }}>← Volver</button>
       </nav>
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", maxWidth: 1100, width: "100%", margin: "0 auto" }}>
-        {history.length === 0 ? (
-          <div style={{ textAlign: "center", paddingTop: 80, color: "#484f58" }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>📭</div>
-            <div>Aún no tienes auditorías guardadas</div>
+        {/* Search + filters */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+          <div style={{ flex: 1, background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "#484f58", fontSize: 12 }}>🔍</span>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por negocio o fecha..."
+              style={{ background: "transparent", border: "none", outline: "none", color: "#c9d1d9", fontFamily: "inherit", fontSize: 12, width: "100%" }} />
           </div>
-        ) : history.map(entry => (
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          {[["todos","Todos"],["mes","Este mes"],["cliente","Con cliente"],["critico","Críticos"]].map(([val, lbl]) => (
+            <button key={val} onClick={() => setFilter(val)}
+              style={{ background: filter === val ? "#FF450022" : "#21262d", border: `1px solid ${filter === val ? "#FF450055" : "transparent"}`, color: filter === val ? "#FF4500" : "#484f58", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontFamily: "inherit", fontSize: 10 }}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: "center", paddingTop: 60, color: "#484f58" }}>
+            <div style={{ fontSize: 32, marginBottom: 10 }}>📭</div>
+            <div>{search ? "No encontré auditorías con esa búsqueda" : "Aún no tienes auditorías guardadas"}</div>
+          </div>
+        ) : filtered.map(entry => (
           <div key={entry.id} style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 10, padding: "16px 18px", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
               <div>
@@ -462,11 +541,13 @@ function App() {
   const [saveModal, setSaveModal] = useState(null);
   const [reauditModal, setReauditModal] = useState(null);
   const [activeClient, setActiveClient] = useState(null);
+  const [toast, setToast] = useState(null);
   const bottomRef = useRef(null);
-  const topRef = useRef(null);
   const textareaRef = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+
+  const showToast = msg => { setToast(msg); };
 
   const goHome = () => { setMessages([]); setActiveClient(null); setScreen("chat"); };
 
@@ -480,10 +561,10 @@ function App() {
     const userText = (text !== undefined ? text : input).trim();
     if (!userText || loading) return;
     setInput("");
-    const systemWithContext = extraContext ? MASTER_PROMPT + "\n\n" + extraContext : MASTER_PROMPT;
     const newMessages = [...messages, { role: "user", content: userText }];
     setMessages(newMessages);
     setLoading(true);
+    const systemWithContext = extraContext ? MASTER_PROMPT + "\n\n" + extraContext : MASTER_PROMPT;
     try {
       const result = await runAuditLoop(newMessages.map(m => ({ role: m.role, content: m.content })), apiKey, setStatus, systemWithContext);
       setMessages(prev => [...prev, { role: "assistant", content: result }]);
@@ -505,6 +586,7 @@ function App() {
     if (history[0]) { history[0].clientId = newClient.id; localStorage.setItem("ignitia_history", JSON.stringify(history)); if (history[0].score) { newClient.lastScore = history[0].score; newClient.lastAudit = history[0].date; } }
     saveClients([newClient, ...clients]);
     setActiveClient(newClient); setSaveModal(null);
+    showToast(`✓ ${name} guardado en tu dashboard`);
   };
 
   const handleSelectClient = (client) => {
@@ -531,6 +613,24 @@ function App() {
 
   const historyCount = loadHistory().length;
 
+  const globalStyles = `
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@700&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.6)}}
+    @keyframes blink{50%{opacity:0}}
+    .loading-bar{height:2px;border-radius:2px;background:linear-gradient(90deg,#FF4500,#58a6ff,#3fb950,#FF4500);background-size:300%;animation:shimmer 1.8s linear infinite}
+    .anim{animation:fadeUp .3s ease both}
+    .send-btn{background:#FF4500;border:none;color:#fff;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;transition:all .2s}
+    .send-btn:hover:not(:disabled){background:#FF6A33;transform:translateY(-1px)}
+    .send-btn:disabled{opacity:.3;cursor:not-allowed}
+    textarea{background:transparent;border:none;outline:none;color:#c9d1d9;font-family:inherit;font-size:13px;resize:none;width:100%;line-height:1.6}
+    textarea::placeholder{color:#3d444d}
+    select option{background:#161b22}
+  `;
+
   // ── Setup ──
   if (showSetup) return (
     <div style={{ fontFamily: "'IBM Plex Mono',monospace", background: "#060a10", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -548,28 +648,12 @@ function App() {
     </div>
   );
 
-  // ── Shared styles ──
-  const globalStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@700&display=swap');
-    *{box-sizing:border-box;margin:0;padding:0}
-    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px}
-    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.6)}}
-    @keyframes blink{50%{opacity:0}}
-    .loading-bar{height:2px;border-radius:2px;background:linear-gradient(90deg,#FF4500,#58a6ff,#3fb950,#FF4500);background-size:300%;animation:shimmer 1.8s linear infinite}
-    .anim{animation:fadeUp .3s ease both}
-    .nav-btn{background:transparent;border:1px solid #21262d;color:#484f58;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:10px;transition:all .2s}
-    .nav-btn:hover{border-color:#FF4500;color:#FF4500}
-    .starter-btn{background:#0d1117;border:1px solid #21262d;color:#8b949e;padding:10px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:11px;transition:all .2s;text-align:left}
-    .starter-btn:hover{border-color:#FF4500;color:#FF4500;background:#1a0800}
-    .send-btn{background:#FF4500;border:none;color:#fff;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;transition:all .2s}
-    .send-btn:hover:not(:disabled){background:#FF6A33;transform:translateY(-1px)}
-    .send-btn:disabled{opacity:.3;cursor:not-allowed}
-    textarea{background:transparent;border:none;outline:none;color:#c9d1d9;font-family:inherit;font-size:13px;resize:none;width:100%;line-height:1.6}
-    textarea::placeholder{color:#3d444d}
-    select option{background:#161b22}
-  `;
+  const navMenuItems = [
+    { icon: "💬", label: "Chat", onClick: goHome },
+    { icon: "📊", label: "Dashboard", onClick: () => setScreen("dashboard") },
+    { icon: "📋", label: `Historial (${historyCount})`, onClick: () => setScreen("history") },
+    { icon: "⚙", label: "Cambiar API Key", onClick: () => { localStorage.removeItem("ignitia_api_key"); setShowSetup(true); setApiKey(""); }, danger: false },
+  ];
 
   // ── History ──
   if (screen === "history") return (
@@ -589,13 +673,12 @@ function App() {
       <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" />
       <nav style={{ padding: "14px 24px", borderBottom: "1px solid #161b22", display: "flex", alignItems: "center", gap: 12, background: "#0d1117", position: "sticky", top: 0, zIndex: 50 }}>
         <NavLogo onClick={goHome} />
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button className="nav-btn" onClick={goHome}>💬 Chat</button>
-          <button className="nav-btn" onClick={() => setScreen("history")}>📋 Historial ({historyCount})</button>
-          <button className="nav-btn" onClick={() => { localStorage.removeItem("ignitia_api_key"); setShowSetup(true); setApiKey(""); }}>⚙ API Key</button>
+        <div style={{ marginLeft: "auto" }}>
+          <HamburgerMenu items={navMenuItems} />
         </div>
       </nav>
       <Dashboard onNewAudit={goHome} onSelectClient={handleSelectClient} />
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>
   );
 
@@ -609,23 +692,21 @@ function App() {
         defaultUrl={saveModal.query.includes("http") ? saveModal.query.match(/https?:\/\/[^\s]+/)?.[0] || "" : ""}
         onSave={handleSaveClient} onSkip={() => setSaveModal(null)} />}
       {reauditModal && <ReauditModal client={reauditModal} onCompare={handleCompare} onFresh={handleFresh} onCancel={() => { setReauditModal(null); setActiveClient(null); }} />}
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
 
       <nav style={{ padding: "14px 24px", borderBottom: "1px solid #161b22", display: "flex", alignItems: "center", gap: 12, background: "#0d1117", position: "sticky", top: 0, zIndex: 50 }}>
-        <NavLogo onClick={goHome} />
-        {activeClient && (
-          <span style={{ fontSize: 11, color: "#FF4500", background: "#FF450015", padding: "3px 10px", borderRadius: 6 }}>
-            {activeClient.name}
-          </span>
-        )}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {activeClient && <button className="nav-btn" onClick={() => { setActiveClient(null); setMessages([]); }} style={{ color: "#FF4500", borderColor: "#FF450055" }}>✕ Limpiar</button>}
-          <button className="nav-btn" onClick={() => setScreen("dashboard")}>📊 Dashboard</button>
-          <button className="nav-btn" onClick={() => setScreen("history")}>📋 Historial ({historyCount})</button>
-          <button className="nav-btn" onClick={() => { localStorage.removeItem("ignitia_api_key"); setShowSetup(true); setApiKey(""); }}>⚙ API Key</button>
+        <NavLogo onClick={goHome} clientName={activeClient?.name} />
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          {activeClient && (
+            <button onClick={() => { setActiveClient(null); setMessages([]); }}
+              style={{ background: "transparent", border: "1px solid #FF450055", color: "#FF4500", padding: "5px 10px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 10 }}>
+              ✕ Limpiar
+            </button>
+          )}
+          <HamburgerMenu items={navMenuItems} />
         </div>
       </nav>
 
-      <div ref={topRef} />
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px 8px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1100, width: "100%", margin: "0 auto" }}>
         {messages.length === 0 && !loading && (
           <div style={{ textAlign: "center", padding: "40px 20px" }} className="anim">
@@ -636,13 +717,10 @@ function App() {
             <div style={{ fontSize: 13, color: "#484f58", maxWidth: 380, margin: "0 auto 32px", lineHeight: 1.6 }}>
               {activeClient ? `Sector: ${activeClient.sector} · ${getClientAudits(activeClient.id).length} auditorías previas` : "Auditorías digitales que encienden tu visibilidad."}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10, maxWidth: 600, margin: "0 auto" }}>
-              {STARTERS.map(s => (
-                <button key={s.label} className="starter-btn" onClick={() => { setInput(s.template); textareaRef.current?.focus(); }}>
-                  <div style={{ fontSize: 18, marginBottom: 6 }}>{s.icon}</div>
-                  <div style={{ fontWeight: 600, color: "#c9d1d9", marginBottom: 4 }}>{s.label}</div>
-                  <div style={{ lineHeight: 1.4, opacity: .6, fontSize: 10 }}>{s.template}</div>
-                </button>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12, maxWidth: 680, margin: "0 auto" }}>
+              {STARTER_CONFIGS.map(s => (
+                <StarterCard key={s.label} icon={s.icon} label={s.label} fields={s.fields}
+                  onSubmit={values => sendMessage(s.build(values))} />
               ))}
             </div>
           </div>
@@ -690,7 +768,7 @@ function App() {
               <div className="loading-bar" style={{ marginBottom: 14 }} />
               <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 10 }}>{status}</div>
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-                {["Rastreando sitio", "Verificando NAP", "Analizando keywords", "Comparando competidores"].map((t, i) => (
+                {["Rastreando sitio","Verificando NAP","Analizando keywords","Comparando competidores"].map((t, i) => (
                   <span key={i} style={{ fontSize: 10, color: "#30363d", animation: `blink ${1 + i * 0.5}s step-end infinite` }}>{t}...</span>
                 ))}
               </div>
@@ -701,15 +779,6 @@ function App() {
       </div>
 
       <div style={{ padding: "12px 20px 16px", borderTop: "1px solid #161b22", background: "#0d1117", maxWidth: 1100, width: "100%", margin: "0 auto" }}>
-        {messages.length > 0 && (
-          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-            {STARTERS.map(s => (
-              <button key={s.label} className="starter-btn" style={{ padding: "5px 10px", fontSize: 10 }} onClick={() => { setInput(s.template); textareaRef.current?.focus(); }}>
-                {s.icon} {s.label}
-              </button>
-            ))}
-          </div>
-        )}
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", background: "#161b22", border: "1px solid #30363d", borderRadius: 10, padding: "12px 14px" }}>
           <textarea ref={textareaRef} rows={2} value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
