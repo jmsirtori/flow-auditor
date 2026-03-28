@@ -526,7 +526,7 @@ function App() {
   if (screen === "history") return (
     <>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@700&display=swap');*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px}`}</style>
-      <HistoryPanel onClose={() => setScreen("dashboard")} onLoad={e => { setMessages([{ role: "user", content: e.query }, { role: "assistant", content: e.result }]); setScreen("chat"); }} />
+      <HistoryPanel onClose={() => setScreen("dashboard")} onLoad={e => {   setMessages([{ role: "user", content: e.query }, { role: "assistant", content: e.result }]);   setActiveClient(null);   setTimeout(() => setScreen("chat"), 50); }} />
     </>
   );
 
