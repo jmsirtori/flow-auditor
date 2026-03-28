@@ -109,17 +109,61 @@ function parseMarkdownSections(text) {
   return sections.filter(s => s.title || s.content.join("").trim());
 }
 function renderMd(raw) {
-  return raw
+  const lines = raw.split("\n");
+  let html = "";
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    // Tabla markdown
+    if (line.trim().startsWith("|") && lines[i + 1]?.trim().startsWith("|---")) {
+      const headers = line.trim().split("|").filter(c => c.trim()).map(c => c.trim());
+      i += 2; // skip separator
+      let rows = [];
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        rows.push(lines[i].trim().split("|").filter(c => c.trim()).map(c => c.trim()));
+        i++;
+      }
+      html += `<div style="overflow-x:auto;margin:12px 0">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="border-bottom:1px solid #30363d">
+              ${headers.map(h => `<th style="text-align:left;padding:8px 12px;color:#8b949e;font-weight:600;white-space:nowrap">${h}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row, ri) => `
+              <tr style="border-bottom:1px solid #161b22;${ri % 2 === 0 ? "background:#ffffff08" : ""}">
+                ${row.map((cell, ci) => {
+                  const impactColor = cell === "Alto" ? "#3fb950" : cell === "Medio" ? "#d29922" : cell === "Bajo" ? "#8b949e" : cell === "Crítico" ? "#f85149" : null;
+                  const cellHtml = impactColor
+                    ? `<span style="background:${impactColor}22;color:${impactColor};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${cell}</span>`
+                    : formatInline(cell);
+                  return `<td style="padding:8px 12px;color:#c9d1d9;vertical-align:top">${cellHtml}</td>`;
+                }).join("")}
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`;
+      continue;
+    }
+    // H4
+    if (line.startsWith("### ")) { html += `<h4 style="font-size:13px;font-weight:700;margin:16px 0 8px">${formatInline(line.slice(4))}</h4>`; i++; continue; }
+    // Lista
+    if (line.startsWith("- ")) { html += `<li style="font-size:13px;line-height:1.65;margin-bottom:5px;margin-left:18px">${formatInline(line.slice(2))}</li>`; i++; continue; }
+    // Línea vacía
+    if (!line.trim()) { html += "<br/>"; i++; continue; }
+    // Párrafo normal
+    html += `<p style="font-size:13px;line-height:1.75;margin-bottom:8px">${formatInline(line)}</p>`;
+    i++;
+  }
+  return html;
+}
+
+function formatInline(text) {
+  return text
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/^### (.+)$/gm, '<h4 style="font-size:13px;font-weight:700;margin:16px 0 8px">$1</h4>')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/^- (.+)$/gm, "<li>$1</li>")
-    .replace(/(<li>.*?<\/li>(\n|$))+/g, m => `<ul style="padding-left:18px;margin:8px 0">${m}</ul>`)
-    .replace(/\n\n+/g, "</p><p style='margin-bottom:8px'>")
-    .replace(/\n/g, "<br/>")
-    .replace(/^/, "<p style='margin-bottom:8px'>")
-    .replace(/$/, "</p>");
+    .replace(/\*(.+?)\*/g, "<em>$1</em>");
 }
 
 // ─── API loop ──────────────────────────────────────────────────────
