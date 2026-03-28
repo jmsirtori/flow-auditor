@@ -627,7 +627,7 @@ function App() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px 8px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 820, width: "100%", margin: "0 auto" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px 8px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1100, width: "100%", margin: "0 auto" }}>
         {messages.length === 0 && !loading && (
           <div style={{ textAlign: "center", padding: "40px 20px" }} className="anim">
             <div style={{ fontSize: 44, marginBottom: 10 }}>🔥</div>
