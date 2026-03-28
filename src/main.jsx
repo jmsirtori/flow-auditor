@@ -1,6 +1,12 @@
-// Ignitia · SEO Auditor v6.0 — Full UX Update
-import React, { useState, useRef, useEffect, useCallback } from "react";
+// Ignitia · SEO Auditor v7.0 — Supabase Auth
+import React, { useState, useRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 // ─── Storage ───────────────────────────────────────────────────────
 function loadClients() { return JSON.parse(localStorage.getItem("ignitia_clients") || "[]"); }
@@ -127,15 +133,15 @@ function renderMd(raw) {
   return html;
 }
 
-// ─── API loop ──────────────────────────────────────────────────────
-async function runAuditLoop(apiMessages, apiKey, onStatus, systemOverride) {
+// ─── API loop — ahora llama a /api/audit (función serverless) ──────
+async function runAuditLoop(apiMessages, onStatus, systemOverride) {
   const MAX_TURNS = 12;
   let msgs = [...apiMessages];
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     onStatus(turn === 0 ? "Conectando con el auditor..." : `Procesando búsqueda web (paso ${turn})...`);
-    const res = await fetch("/api/v1/messages", {
+    const res = await fetch("/api/audit", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 4000, system: systemOverride || MASTER_PROMPT, tools: [{ type: "web_search_20250305", name: "web_search" }], messages: msgs }),
     });
     if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.error?.message || `Error HTTP ${res.status}`); }
@@ -180,11 +186,9 @@ function ScoreBadge({ score }) {
 function Toast({ message, onClose }) {
   useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, []);
   return (
-    <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 500, display: "flex", alignItems: "center", gap: 10, background: "#161b22", border: "1px solid #3fb95066", borderRadius: 10, padding: "12px 18px", boxShadow: "0 4px 20px #00000066", whiteSpace: "nowrap", animation: "fadeUp .3s ease" }}>
+    <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 500, display: "flex", alignItems: "center", gap: 10, background: "#161b22", border: "1px solid #3fb95066", borderRadius: 10, padding: "12px 18px", whiteSpace: "nowrap" }}>
       <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#3fb95022", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#3fb950" }}>✓</div>
-      <div>
-        <div style={{ color: "#3fb950", fontSize: 12, fontWeight: 600 }}>{message}</div>
-      </div>
+      <div style={{ color: "#3fb950", fontSize: 12, fontWeight: 600 }}>{message}</div>
       <div onClick={onClose} style={{ color: "#30363d", fontSize: 16, cursor: "pointer", marginLeft: 8 }}>×</div>
     </div>
   );
@@ -239,12 +243,12 @@ function HamburgerMenu({ items }) {
   );
 }
 
-// ─── Starter cards con campos editables ───────────────────────────
+// ─── Starter cards ─────────────────────────────────────────────────
 function StarterCard({ icon, label, fields, onSubmit }) {
   const [expanded, setExpanded] = useState(false);
   const [values, setValues] = useState(fields.reduce((a, f) => ({ ...a, [f.key]: "" }), {}));
   if (!expanded) return (
-    <button onClick={() => setExpanded(true)} style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 8, padding: "12px", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all .2s", width: "100%" }}
+    <button onClick={() => setExpanded(true)} style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 8, padding: "12px", cursor: "pointer", fontFamily: "inherit", textAlign: "left", width: "100%" }}
       onMouseOver={e => { e.currentTarget.style.borderColor = "#FF4500"; e.currentTarget.style.background = "#1a0800"; }}
       onMouseOut={e => { e.currentTarget.style.borderColor = "#21262d"; e.currentTarget.style.background = "#0d1117"; }}>
       <div style={{ fontSize: 18, marginBottom: 6 }}>{icon}</div>
@@ -264,8 +268,7 @@ function StarterCard({ icon, label, fields, onSubmit }) {
           <div key={f.key}>
             <div style={{ fontSize: 9, color: "#484f58", marginBottom: 4, letterSpacing: 1 }}>{f.label}</div>
             <input value={values[f.key]} onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))}
-              placeholder={f.placeholder}
-              onKeyDown={e => e.key === "Enter" && onSubmit(values)}
+              placeholder={f.placeholder} onKeyDown={e => e.key === "Enter" && onSubmit(values)}
               style={{ width: "100%", background: "#161b22", border: "1px solid #30363d", borderRadius: 6, padding: "8px 10px", color: "#c9d1d9", fontFamily: "inherit", fontSize: 11, outline: "none" }} />
           </div>
         ))}
@@ -283,6 +286,74 @@ const STARTER_CONFIGS = [
   { icon: "🎯", label: "Keywords reales", fields: [{ key: "negocio", label: "NEGOCIO Y CIUDAD", placeholder: "Ej: Dentista en Naucalpan, CDMX" }], build: v => `🎯 ¿Por qué palabras clave me encuentra la gente? Mi negocio: ${v.negocio}` },
   { icon: "🚀", label: "Quick wins", fields: [{ key: "url", label: "URL DEL SITIO", placeholder: "Ej: https://tusitio.mx" }], build: v => `🚀 Dame 5 cambios rápidos para mejorar mi visibilidad. Mi sitio: ${v.url}` },
 ];
+
+// ─── Login screen ──────────────────────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleLogin = async () => {
+    if (!email || !password) return setError("Ingresa tu email y contraseña");
+    setLoading(true);
+    setError("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setError("Credenciales incorrectas. Intenta de nuevo.");
+    else onLogin();
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ fontFamily: "'IBM Plex Mono',monospace", background: "#060a10", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@700&display=swap');*{box-sizing:border-box;margin:0;padding:0}@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <div style={{ maxWidth: 400, width: "100%", animation: "fadeUp .4s ease" }}>
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: "linear-gradient(135deg,#FF4500,#c43300)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, margin: "0 auto 14px" }}>🔥</div>
+          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 20, color: "#e6edf3" }}>Ignitia · SEO Auditor</div>
+          <div style={{ fontSize: 11, color: "#484f58", marginTop: 4 }}>Data-driven. Results-focused.</div>
+        </div>
+
+        {/* Card */}
+        <div style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 14, padding: 28 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#e6edf3", marginBottom: 20 }}>Iniciar sesión</div>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, color: "#8b949e", marginBottom: 6, letterSpacing: 1 }}>EMAIL</div>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleLogin()}
+              placeholder="tu@email.com"
+              style={{ width: "100%", background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: "10px 14px", color: "#c9d1d9", fontFamily: "inherit", fontSize: 13, outline: "none" }} />
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 10, color: "#8b949e", marginBottom: 6, letterSpacing: 1 }}>CONTRASEÑA</div>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleLogin()}
+              placeholder="••••••••"
+              style={{ width: "100%", background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: "10px 14px", color: "#c9d1d9", fontFamily: "inherit", fontSize: 13, outline: "none" }} />
+          </div>
+
+          {error && (
+            <div style={{ background: "#f8514922", border: "1px solid #f8514944", borderRadius: 8, padding: "10px 14px", color: "#f85149", fontSize: 12, marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
+
+          <button onClick={handleLogin} disabled={loading}
+            style={{ width: "100%", background: loading ? "#7a2200" : "#FF4500", border: "none", borderRadius: 8, padding: "12px", color: "#fff", fontFamily: "inherit", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", transition: "background .2s" }}>
+            {loading ? "Verificando..." : "ENTRAR →"}
+          </button>
+
+          <div style={{ fontSize: 10, color: "#30363d", textAlign: "center", marginTop: 16, lineHeight: 1.6 }}>
+            Acceso restringido · Solo usuarios autorizados
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Dashboard ─────────────────────────────────────────────────────
 function Dashboard({ onNewAudit, onSelectClient }) {
@@ -307,8 +378,6 @@ function Dashboard({ onNewAudit, onSelectClient }) {
     });
   }, [clients.length]);
 
-  const isEmpty = clients.length === 0;
-
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
@@ -319,7 +388,6 @@ function Dashboard({ onNewAudit, onSelectClient }) {
         <button onClick={onNewAudit} style={{ background: "#FF4500", border: "none", color: "#fff", padding: "10px 18px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 700 }}>+ Nueva auditoría</button>
       </div>
 
-      {/* Metric cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 12, marginBottom: 24 }}>
         {[
           { label: "Clientes activos", value: clients.length, color: clients.length ? "#e6edf3" : "#30363d" },
@@ -334,17 +402,12 @@ function Dashboard({ onNewAudit, onSelectClient }) {
         ))}
       </div>
 
-      {/* Empty state */}
-      {isEmpty ? (
+      {clients.length === 0 ? (
         <div style={{ background: "#0d1117", border: "1px dashed #30363d", borderRadius: 12, padding: "64px 24px", textAlign: "center" }}>
           <div style={{ fontSize: 40, marginBottom: 14 }}>🔥</div>
           <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 16, color: "#e6edf3", marginBottom: 8 }}>Haz tu primera auditoría</div>
-          <div style={{ color: "#484f58", fontSize: 13, lineHeight: 1.7, marginBottom: 28, maxWidth: 380, margin: "0 auto 28px" }}>
-            Ingresa el nombre y URL de un negocio para generar tu primer reporte de visibilidad digital con IA
-          </div>
-          <button onClick={onNewAudit} style={{ background: "#FF4500", border: "none", color: "#fff", padding: "12px 24px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700 }}>
-            + Empezar auditoría
-          </button>
+          <div style={{ color: "#484f58", fontSize: 13, lineHeight: 1.7, marginBottom: 28, maxWidth: 380, margin: "0 auto 28px" }}>Ingresa el nombre y URL de un negocio para generar tu primer reporte de visibilidad digital</div>
+          <button onClick={onNewAudit} style={{ background: "#FF4500", border: "none", color: "#fff", padding: "12px 24px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700 }}>+ Empezar auditoría</button>
         </div>
       ) : (
         <>
@@ -459,7 +522,7 @@ function ReauditModal({ client, onCompare, onFresh, onCancel }) {
   );
 }
 
-// ─── History panel con búsqueda ────────────────────────────────────
+// ─── History panel ─────────────────────────────────────────────────
 function HistoryPanel({ onClose, onLoad }) {
   const [history, setHistory] = useState(loadHistory());
   const [search, setSearch] = useState("");
@@ -467,14 +530,12 @@ function HistoryPanel({ onClose, onLoad }) {
   const clients = loadClients();
   const getClientName = id => { const c = clients.find(c => c.id === id); return c ? c.name : null; };
   const handleDelete = id => { const u = history.filter(e => e.id !== id); localStorage.setItem("ignitia_history", JSON.stringify(u)); setHistory(u); };
-
   const filtered = history.filter(e => {
     const name = getClientName(e.clientId) || "";
     const matchSearch = !search || e.query.toLowerCase().includes(search.toLowerCase()) || name.toLowerCase().includes(search.toLowerCase());
     const matchFilter = filter === "todos" || (filter === "cliente" && e.clientId) || (filter === "critico" && e.score && e.score <= 4) || (filter === "mes" && (() => { const d = new Date(e.id); const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear(); })());
     return matchSearch && matchFilter;
   });
-
   return (
     <div style={{ position: "fixed", inset: 0, background: "#060a10", zIndex: 200, display: "flex", flexDirection: "column", fontFamily: "'IBM Plex Mono',monospace" }}>
       <nav style={{ padding: "14px 24px", borderBottom: "1px solid #161b22", display: "flex", alignItems: "center", gap: 12, background: "#0d1117" }}>
@@ -482,7 +543,6 @@ function HistoryPanel({ onClose, onLoad }) {
         <button onClick={onClose} style={{ marginLeft: "auto", background: "transparent", border: "1px solid #21262d", color: "#8b949e", padding: "6px 14px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 11 }}>← Volver</button>
       </nav>
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", maxWidth: 1100, width: "100%", margin: "0 auto" }}>
-        {/* Search + filters */}
         <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
           <div style={{ flex: 1, background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ color: "#484f58", fontSize: 12 }}>🔍</span>
@@ -490,7 +550,7 @@ function HistoryPanel({ onClose, onLoad }) {
               style={{ background: "transparent", border: "none", outline: "none", color: "#c9d1d9", fontFamily: "inherit", fontSize: 12, width: "100%" }} />
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           {[["todos","Todos"],["mes","Este mes"],["cliente","Con cliente"],["critico","Críticos"]].map(([val, lbl]) => (
             <button key={val} onClick={() => setFilter(val)}
               style={{ background: filter === val ? "#FF450022" : "#21262d", border: `1px solid ${filter === val ? "#FF450055" : "transparent"}`, color: filter === val ? "#FF4500" : "#484f58", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontFamily: "inherit", fontSize: 10 }}>
@@ -498,7 +558,6 @@ function HistoryPanel({ onClose, onLoad }) {
             </button>
           ))}
         </div>
-
         {filtered.length === 0 ? (
           <div style={{ textAlign: "center", paddingTop: 60, color: "#484f58" }}>
             <div style={{ fontSize: 32, marginBottom: 10 }}>📭</div>
@@ -530,9 +589,8 @@ function HistoryPanel({ onClose, onLoad }) {
 
 // ─── App ───────────────────────────────────────────────────────────
 function App() {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("ignitia_api_key") || "");
-  const [apiKeyInput, setApiKeyInput] = useState("");
-  const [showSetup, setShowSetup] = useState(!localStorage.getItem("ignitia_api_key"));
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [screen, setScreen] = useState("dashboard");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -545,17 +603,17 @@ function App() {
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); setAuthLoading(false); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    return () => subscription.unsubscribe();
+  }, []);
+
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
-  const showToast = msg => { setToast(msg); };
-
+  const showToast = msg => setToast(msg);
   const goHome = () => { setMessages([]); setActiveClient(null); setScreen("chat"); };
-
-  const saveApiKey = () => {
-    if (!apiKeyInput.startsWith("sk-ant-")) return alert("La API Key debe empezar con sk-ant-");
-    localStorage.setItem("ignitia_api_key", apiKeyInput);
-    setApiKey(apiKeyInput); setShowSetup(false);
-  };
+  const handleLogout = async () => { await supabase.auth.signOut(); };
 
   const sendMessage = async (text, extraContext = "") => {
     const userText = (text !== undefined ? text : input).trim();
@@ -566,7 +624,7 @@ function App() {
     setLoading(true);
     const systemWithContext = extraContext ? MASTER_PROMPT + "\n\n" + extraContext : MASTER_PROMPT;
     try {
-      const result = await runAuditLoop(newMessages.map(m => ({ role: m.role, content: m.content })), apiKey, setStatus, systemWithContext);
+      const result = await runAuditLoop(newMessages.map(m => ({ role: m.role, content: m.content })), setStatus, systemWithContext);
       setMessages(prev => [...prev, { role: "assistant", content: result }]);
       const score = extractScore(result);
       const clientId = activeClient ? activeClient.id : null;
@@ -574,7 +632,7 @@ function App() {
       if (clientId && score) updateClientScore(clientId, score);
       if (!activeClient) setSaveModal({ query: userText, result });
     } catch (e) {
-      setMessages(prev => [...prev, { role: "assistant", content: `## ❌ Error\n\n**${e.message}**\n\n- Verifica tu API Key\n- Verifica que la URL esté completa` }]);
+      setMessages(prev => [...prev, { role: "assistant", content: `## ❌ Error\n\n**${e.message}**\n\n- Verifica tu conexión\n- Verifica que la URL esté completa` }]);
     }
     setLoading(false); setStatus("");
   };
@@ -586,7 +644,7 @@ function App() {
     if (history[0]) { history[0].clientId = newClient.id; localStorage.setItem("ignitia_history", JSON.stringify(history)); if (history[0].score) { newClient.lastScore = history[0].score; newClient.lastAudit = history[0].date; } }
     saveClients([newClient, ...clients]);
     setActiveClient(newClient); setSaveModal(null);
-    showToast(`✓ ${name} guardado en tu dashboard`);
+    showToast(`${name} guardado en tu dashboard`);
   };
 
   const handleSelectClient = (client) => {
@@ -601,8 +659,7 @@ function App() {
     const last = audits[0];
     setReauditModal(null); setMessages([]);
     const context = `CONTEXTO DE AUDITORÍA ANTERIOR (${last.date}):\n${last.result.slice(0, 1500)}\n\nINSTRUCCIÓN ESPECIAL: Compara con la anterior. Al final agrega:\n## 📈 COMPARACIÓN CON AUDITORÍA ANTERIOR\nIndica qué mejoró, qué empeoró y qué sigue igual.`;
-    const query = `🔍 Re-audita y compara: ${reauditModal.name}${reauditModal.url ? " - " + reauditModal.url : ""}`;
-    setTimeout(() => sendMessage(query, context), 100);
+    setTimeout(() => sendMessage(`🔍 Re-audita y compara: ${reauditModal.name}${reauditModal.url ? " - " + reauditModal.url : ""}`, context), 100);
   };
 
   const handleFresh = () => {
@@ -631,31 +688,23 @@ function App() {
     select option{background:#161b22}
   `;
 
-  // ── Setup ──
-  if (showSetup) return (
-    <div style={{ fontFamily: "'IBM Plex Mono',monospace", background: "#060a10", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@700&display=swap');*{box-sizing:border-box;margin:0;padding:0}`}</style>
-      <div style={{ maxWidth: 420, width: "100%", background: "#0d1117", border: "1px solid #30363d", borderRadius: 12, padding: 32 }}>
-        <div style={{ fontSize: 32, marginBottom: 12, textAlign: "center" }}>🔥</div>
-        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 18, color: "#e6edf3", textAlign: "center", marginBottom: 8 }}>Ignitia · SEO Auditor</div>
-        <div style={{ fontSize: 12, color: "#484f58", textAlign: "center", marginBottom: 28, lineHeight: 1.6 }}>Ingresa tu API Key de Anthropic para comenzar.<br />Se guarda solo en tu navegador.</div>
-        <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 6 }}>API KEY DE ANTHROPIC</div>
-        <input type="password" placeholder="sk-ant-api03-..." value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} onKeyDown={e => e.key === "Enter" && saveApiKey()}
-          style={{ width: "100%", background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: "10px 14px", color: "#c9d1d9", fontFamily: "inherit", fontSize: 13, outline: "none", marginBottom: 16 }} />
-        <button onClick={saveApiKey} style={{ width: "100%", background: "#FF4500", border: "none", borderRadius: 8, padding: 12, color: "#fff", fontFamily: "inherit", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>COMENZAR →</button>
-        <div style={{ fontSize: 10, color: "#30363d", textAlign: "center", marginTop: 14 }}>Consigue tu API Key en console.anthropic.com</div>
-      </div>
+  // Loading auth
+  if (authLoading) return (
+    <div style={{ fontFamily: "'IBM Plex Mono',monospace", background: "#060a10", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ color: "#484f58", fontSize: 13 }}>Cargando...</div>
     </div>
   );
+
+  // Not logged in
+  if (!session) return <LoginScreen onLogin={() => {}} />;
 
   const navMenuItems = [
     { icon: "💬", label: "Chat", onClick: goHome },
     { icon: "📊", label: "Dashboard", onClick: () => setScreen("dashboard") },
     { icon: "📋", label: `Historial (${historyCount})`, onClick: () => setScreen("history") },
-    { icon: "⚙", label: "Cambiar API Key", onClick: () => { localStorage.removeItem("ignitia_api_key"); setShowSetup(true); setApiKey(""); }, danger: false },
+    { icon: "🚪", label: "Cerrar sesión", onClick: handleLogout },
   ];
 
-  // ── History ──
   if (screen === "history") return (
     <>
       <style>{globalStyles}</style>
@@ -666,14 +715,14 @@ function App() {
     </>
   );
 
-  // ── Dashboard ──
   if (screen === "dashboard") return (
     <div style={{ fontFamily: "'IBM Plex Mono',monospace", background: "#060a10", minHeight: "100vh", color: "#c9d1d9" }}>
       <style>{globalStyles}</style>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" />
       <nav style={{ padding: "14px 24px", borderBottom: "1px solid #161b22", display: "flex", alignItems: "center", gap: 12, background: "#0d1117", position: "sticky", top: 0, zIndex: 50 }}>
         <NavLogo onClick={goHome} />
-        <div style={{ marginLeft: "auto" }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontSize: 10, color: "#484f58" }}>{session.user.email}</div>
           <HamburgerMenu items={navMenuItems} />
         </div>
       </nav>
@@ -682,7 +731,6 @@ function App() {
     </div>
   );
 
-  // ── Chat ──
   return (
     <div style={{ fontFamily: "'IBM Plex Mono',monospace", background: "#060a10", minHeight: "100vh", color: "#c9d1d9", display: "flex", flexDirection: "column" }}>
       <style>{globalStyles}</style>
@@ -703,6 +751,7 @@ function App() {
               ✕ Limpiar
             </button>
           )}
+          <div style={{ fontSize: 10, color: "#484f58" }}>{session.user.email}</div>
           <HamburgerMenu items={navMenuItems} />
         </div>
       </nav>
