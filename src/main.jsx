@@ -221,7 +221,45 @@ function useLang() { return useContext(LangContext); }
 // ─── Master prompt by language ─────────────────────────────────────
 function getMasterPrompt(lang) {
   const isEN = lang === "en";
-  return `ROL: You are the "Digital Growth Auditor" of Ignitia, an elite digital strategist. Your mission is to audit digital ecosystems to find "attention leaks", lack of coherence and positioning weaknesses (SEO).
+ function getMasterPrompt(lang) {
+  const isEN = lang === "en";
+  return {
+    system: `Eres un especialista en estrategia digital, conversión y presencia online para Ignitia. ${isEN ? "Respond entirely in English." : "Responde completamente en español."}`,
+    user: `Analiza el negocio mencionado siguiendo esta secuencia:
+
+1. BUSCAR — Busca información real del negocio en internet: sitio web, Google Maps, redes sociales.
+2. IDENTIFICAR — Determina el giro exacto del negocio y su mercado objetivo.
+3. AUDITAR — Evalúa su presencia digital identificando problemas relevantes para ese giro específico: coherencia NAP, fricción web, SEO, keywords, contenido, velocidad, redes sociales.
+4. PRIORIZAR — Selecciona los problemas con mayor impacto en conversión o visibilidad.
+
+${isEN ? "Respond using exactly these sections:" : "Responde usando exactamente estas secciones:"}
+
+## 🛠️ ${isEN ? "INTERNAL NOTES" : "NOTAS INTERNAS"}
+- ${isEN ? "Technical Analysis: errors, NAP, SEO metrics." : "Análisis Técnico: errores, NAP, métricas SEO."}
+- ${isEN ? "Sales Hook: top weak point." : "Gancho de Venta: punto débil principal."}
+
+## 📄 ${isEN ? "CLIENT REPORT" : "REPORTE PARA EL CLIENTE"}
+### ⚡ ${isEN ? "Digital Health Diagnosis" : "Diagnóstico de Salud Digital"}
+${isEN ? "Score 1-10 Friction." : "Calificación 1-10 Fricción."}
+### 🎯 ${isEN ? "Your Google Showcase" : "Tu Vitrina en Google"}
+### 🔍 ${isEN ? "The Road Bumps" : "Los Baches en el Camino"}
+### 🏗️ ${isEN ? "Your Main Sign (H1)" : "Tu Letrero Principal (H1)"}
+### 🚀 ${isEN ? "Quick Wins (60 min)" : "Plan de Quick Wins (60 min)"}
+| ${isEN ? "Action" : "Acción"} | ${isEN ? "Where" : "Dónde"} | ${isEN ? "Time" : "Tiempo"} | ${isEN ? "Impact" : "Impacto"} |
+|--------|-------|--------|---------|
+${isEN ? "Order by impact: High, Medium, Low." : "Ordena: Alto, Medio, Bajo."}
+
+## 🏆 ${isEN ? "COMPETITIVE BENCHMARK" : "BENCHMARK COMPETITIVO"}
+${isEN ? "2 main competitors: name, URL, advantages, keywords, score. End: Main gap + Immediate opportunity." : "2 competidores: nombre, URL, ventajas, keywords, score. Al final: Brecha principal + Oportunidad inmediata."}
+
+## 📚 ${isEN ? "GLOSSARY" : "DICCIONARIO PARA DUEÑOS"}
+${isEN ? "Define H1, SEO, NAP, Keywords, Friction with simple analogies." : "Define H1, SEO, NAP, Keywords, Fricción con analogías simples."}
+
+IGNITIA_SCORE: [1-10]
+
+${isEN ? "If not found: 'Could not verify, please review manually'." : "Si no encuentras: 'No pude verificar, favor revisar manualmente'."}`
+  };
+}
 
 IMPORTANT: ${isEN ? "Respond ENTIRELY in English. All sections, labels, and content must be in English." : "Responde COMPLETAMENTE en español. Todas las secciones, etiquetas y contenido deben estar en español."}
 
