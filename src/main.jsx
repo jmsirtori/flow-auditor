@@ -715,7 +715,7 @@ function App() {
         <TopBar setView={setView}/>
         <Sidebar currentView={view} setView={v=>{setView(v);if(v==="chat"){setMessages([]);setActiveClient(null);}}} session={session} onLogout={()=>supabase.auth.signOut()}/>
         <main style={{marginLeft:240,paddingTop:64,minHeight:"100vh",width:"calc(100% - 240px)"}}>
-          <div style={{padding:"36px 36px 0",width:"100%",maxWidth:1100,boxSizing:"border-box"}}>
+          <div style={{padding:"36px 36px 0",width:"100%",maxWidth:1100,boxSizing:"border-box",margin:"0 auto"}}>
             {view==="dashboard"&&<DashboardView clients={clients} history={history} onNewAudit={()=>{setMessages([]);setActiveClient(null);setView("chat");}} onSelectClient={handleSelectClient}/>}
             {view==="history"&&<HistoryView history={history} clients={clients}/>}
             {view==="chat"&&(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 100px)"}}>
