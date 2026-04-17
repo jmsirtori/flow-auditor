@@ -678,15 +678,17 @@ function App() {
   };
 
   const handleSaveClient = async ({ name, url, sector }) => {
-    const saved = await dbSaveClient({ name, url, sector, last_score:null, last_audit:null }, session.user.id);
+    const lastAudit = history[0];
+    const scoreFromAudit = lastAudit?.score || null;
+    const dateFromAudit = scoreFromAudit ? new Date().toLocaleDateString("es-MX",{day:"2-digit",month:"short",year:"numeric"}) : null;
+    const saved = await dbSaveClient({ name, url, sector, last_score:scoreFromAudit, last_audit:dateFromAudit }, session.user.id);
     if (saved) {
-      const newClients = await dbLoadClients(session.user.id); setClients(newClients);
-      setActiveClient(saved); setSaveModal(null);
-      setToast(`${name} ${t("toastSaved")}`);
-      const lastAudit = history[0];
       if (lastAudit && !lastAudit.client_id) {
         await supabase.from("audits").update({ client_id:saved.id }).eq("id",lastAudit.id);
       }
+      const newClients = await dbLoadClients(session.user.id); setClients(newClients);
+      setActiveClient(saved); setSaveModal(null);
+      setToast(`${name} ${t("toastSaved")}`);
     }
   };
 
