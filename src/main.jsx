@@ -425,7 +425,7 @@ function LoginScreen() {
 }
 
 // ─── Dashboard ─────────────────────────────────────────────────────
-function DashboardView({ clients, history, onNewAudit, onSelectClient }) {
+function DashboardView({ clients, history, onNewAudit, onSelectClient, onViewClient }) {
   const { t, lang } = useLang();
   const scored = history.filter(h=>h.score);
   const avgScore = scored.length ? (scored.reduce((a,b)=>a+b.score,0)/scored.length).toFixed(1) : null;
@@ -481,7 +481,7 @@ function DashboardView({ clients, history, onNewAudit, onSelectClient }) {
               <td style={{padding:"16px 18px",textAlign:"center"}}><div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>{client.last_score?<ScoreBadge score={client.last_score}/>:<span style={{color:"#31353c",fontSize:10}}>{t("noScore")}</span>}{client.last_score&&prev?.score&&<TrendBadge current={client.last_score} previous={prev.score}/>}</div></td>
               <td style={{padding:"16px 18px",textAlign:"center",fontWeight:700,fontSize:13,color:"#dfe2ec"}}>{String(clientAudits.length).padStart(2,"0")}</td>
               <td style={{padding:"16px 18px",textAlign:"center",fontSize:10,color:"#484f58",textTransform:"uppercase"}}>{client.last_audit||"—"}</td>
-              <td style={{padding:"16px 18px",textAlign:"right"}}><button onClick={()=>onSelectClient(client)} style={{background:"none",border:"none",color:"#484f58",cursor:"pointer",fontSize:11,textTransform:"uppercase",letterSpacing:"0.1em",fontFamily:"'Cordia New',monospace",fontWeight:700}} onMouseOver={e=>e.currentTarget.style.color="#FF4500"} onMouseOut={e=>e.currentTarget.style.color="#484f58"}>{t("viewBtn")}</button></td>
+              <td style={{padding:"16px 18px",textAlign:"right"}}><div style={{display:"flex",gap:16,justifyContent:"flex-end"}}><button onClick={()=>onViewClient(client)} style={{background:"none",border:"none",color:"#484f58",cursor:"pointer",fontSize:11,textTransform:"uppercase",letterSpacing:"0.1em",fontFamily:"'Cordia New',monospace",fontWeight:700}} onMouseOver={e=>e.currentTarget.style.color="#FF4500"} onMouseOut={e=>e.currentTarget.style.color="#484f58"}>{t("viewBtn")}</button><button onClick={()=>onSelectClient(client)} style={{background:"none",border:"none",color:"#484f58",cursor:"pointer",fontSize:11,textTransform:"uppercase",letterSpacing:"0.1em",fontFamily:"'Cordia New',monospace",fontWeight:700}} onMouseOver={e=>e.currentTarget.style.color="#FF4500"} onMouseOut={e=>e.currentTarget.style.color="#484f58"}>+</button></div></td>
             </tr>);
           })}</tbody>
         </table></div>
@@ -744,7 +744,7 @@ function App() {
         <Sidebar currentView={view} setView={v=>{setView(v);if(v==="chat"){setMessages([]);setActiveClient(null);}}} session={session} onLogout={()=>supabase.auth.signOut()}/>
         <main style={{marginLeft:240,paddingTop:64,minHeight:"100vh",width:"calc(100% - 240px)"}}>
           <div style={{padding:"36px 36px 0",width:"100%",maxWidth:1100,boxSizing:"border-box",margin:"0 auto"}}>
-            {view==="dashboard"&&<DashboardView clients={clients} history={history} onNewAudit={()=>{setMessages([]);setActiveClient(null);setView("chat");}} onSelectClient={handleSelectClient}/>}
+            {view==="dashboard"&&<DashboardView clients={clients} history={history} onNewAudit={()=>{setMessages([]);setActiveClient(null);setView("chat");}} onSelectClient={handleSelectClient} onViewClient={(client)=>{const lastAudit=history.find(h=>h.client_id===client.id);if(lastAudit){setMessages([{role:"user",content:lastAudit.query},{role:"assistant",content:lastAudit.result}]);setActiveClient(client);setView("chat");}else{setMessages([]);setActiveClient(client);setView("chat");}}}/>}
             {view==="history"&&<HistoryView history={history} clients={clients} onLoad={e=>{setMessages([{role:"user",content:e.query},{role:"assistant",content:e.result}]);setActiveClient(null);setView("chat");}} onDelete={async(id)=>{await dbDeleteAudit(id);const newHistory=await dbLoadHistory(session.user.id);setHistory(newHistory);}}/>}
             {view==="chat"&&(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 100px)"}}>
               {saveModal&&<SaveClientModal defaultName={saveModal.query.replace(/.*?:\s*/,"").split(" - ")[0]||""} defaultUrl={saveModal.query.includes("http")?saveModal.query.match(/https?:\/\/[^\s]+/)?.[0]||"":""} defaultSector={saveModal.detectedSector||""} onSave={handleSaveClient} onSkip={()=>setSaveModal(null)}/>}
