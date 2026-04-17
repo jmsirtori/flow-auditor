@@ -135,6 +135,10 @@ async function dbToggleQuickWin(id, completed) {
   if (error) console.error("Error toggling quick win:", error);
 }
 async function dbLoadPendingQuickWins(clientId) {
+async function dbDeleteAudit(id) {
+  const { error } = await supabase.from("audits").delete().eq("id", id);
+  if (error) console.error("Error deleting audit:", error);
+}
   const { data, error } = await supabase.from("quick_wins").select("*").eq("client_id", clientId).eq("completed", false).order("created_at");
   if (error) { console.error("Error loading pending wins:", error); return []; }
   return data || [];
@@ -144,6 +148,8 @@ async function dbLoadPendingQuickWins(clientId) {
 function extractScore(text) {
   const m = text.match(/IGNITIA_SCORE:\s*(\d+(?:\.\d+)?)/);
   if (m) return parseFloat(m[1]);
+  const m2 = text.match(/[Ff]ricci[oó]n[^0-9]*(\d+(?:\.\d+)?)\s*\/\s*10/);
+  if (m2) return parseFloat(m2[1]);
   return null;
 }
 function extractSector(text) {
@@ -152,16 +158,16 @@ function extractSector(text) {
   return null;
 }
 function extractRadar(text) {
-  const m = text.match(/IGNITIA_RADAR:\s*SEO=(\d+),LOCAL=(\d+),CONTENT=(\d+),SPEED=(\d+),SOCIAL=(\d+)/);
+  const m = text.match(/IGNITIA_RADAR:\s*SEO=(\d+)[,\s]+LOCAL=(\d+)[,\s]+CONTENT=(\d+)[,\s]+SPEED=(\d+)[,\s]+SOCIAL=(\d+)/i);
   if (!m) return null;
-  return { seo: parseInt(m[1]), local: parseInt(m[2]), content: parseInt(m[3]), speed: parseInt(m[4]), social: parseInt(m[5]) };
+  return { seo:parseInt(m[1]), local:parseInt(m[2]), content:parseInt(m[3]), speed:parseInt(m[4]), social:parseInt(m[5]) };
 }
 function extractQuickWins(text) {
   const wins = [];
   const lines = text.split("\n");
   for (const line of lines) {
     const m = line.match(/^QW\d+:\s*(.+)/);
-    if (m) wins.push(m[1].trim());
+    if (m && m[1].trim()) wins.push(m[1].trim());
   }
   return wins;
 }
@@ -292,14 +298,24 @@ function RadarChart({ data, lang }) {
   const canvasRef = useRef(null);
   const labels = lang === "en" ? ["SEO","Local","Content","Speed","Social"] : ["SEO","Local","Contenido","Velocidad","Redes"];
   useEffect(() => {
-    if (!data || !canvasRef.current || !window.Chart) return;
-    const existing = canvasRef.current._chartInst;
-    if (existing) existing.destroy();
-    canvasRef.current._chartInst = new window.Chart(canvasRef.current, {
-      type: "radar",
-      data: { labels, datasets: [{ data: [data.seo, data.local, data.content, data.speed, data.social], backgroundColor:"rgba(255,69,0,0.15)", borderColor:"#FF4500", borderWidth:2, pointBackgroundColor:"#FF4500", pointRadius:4 }] },
-      options: { responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } }, scales:{ r:{ min:0, max:10, ticks:{ stepSize:2, color:"#484f58", font:{ size:9 }, backdropColor:"transparent" }, grid:{ color:"rgba(255,255,255,0.07)" }, pointLabels:{ color:"#8b949e", font:{ size:10 } }, angleLines:{ color:"rgba(255,255,255,0.07)" } } } }
-    });
+    const loadAndRender = () => {
+      if (window.Chart) { renderRadar(); return; }
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js";
+      script.onload = renderRadar;
+      document.head.appendChild(script);
+    };
+    const renderRadar = () => {
+      if (!data || !canvasRef.current || !window.Chart) return;
+      const existing = canvasRef.current._chartInst;
+      if (existing) existing.destroy();
+      canvasRef.current._chartInst = new window.Chart(canvasRef.current, {
+        type: "radar",
+        data: { labels, datasets: [{ data: [data.seo, data.local, data.content, data.speed, data.social], backgroundColor:"rgba(255,69,0,0.15)", borderColor:"#FF4500", borderWidth:2, pointBackgroundColor:"#FF4500", pointRadius:4 }] },
+        options: { responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } }, scales:{ r:{ min:0, max:10, ticks:{ stepSize:2, color:"#484f58", font:{ size:9 }, backdropColor:"transparent" }, grid:{ color:"rgba(255,255,255,0.07)" }, pointLabels:{ color:"#8b949e", font:{ size:10 } }, angleLines:{ color:"rgba(255,255,255,0.07)" } } } }
+      });
+    };
+    loadAndRender();
   }, [data]);
   if (!data) return null;
   return (<div style={{background:"#0f141a",border:"1px solid #21262d",borderRadius:8,padding:16,marginBottom:12}}>
@@ -418,10 +434,20 @@ function DashboardView({ clients, history, onNewAudit, onSelectClient }) {
   const chartClients = clients.filter(c=>c.last_score).slice(0,8);
 
   useEffect(()=>{
-    if (!chartClients.length||!window.Chart) return;
-    const ex = window.ignitiaChart; if (ex) ex.destroy();
-    const ctx = document.getElementById("dashChart"); if (!ctx) return;
-    window.ignitiaChart = new window.Chart(ctx,{ type:"bar", data:{ labels:chartClients.map(c=>c.name.length>10?c.name.slice(0,10)+"…":c.name), datasets:[{ data:chartClients.map(c=>c.last_score), backgroundColor:chartClients.map(c=>c.last_score<=4?"#E24B4A":c.last_score<=7?"#d29922":"#3fb950"), borderRadius:0 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ min:0, max:10, ticks:{ stepSize:2, color:"#484f58", font:{ family:"'Cordia New',monospace", size:9 } }, grid:{ color:"rgba(255,255,255,0.03)" } }, x:{ ticks:{ color:"#484f58", font:{ family:"'Cordia New',monospace", size:9 }, autoSkip:false, maxRotation:45 }, grid:{ display:false } } } } });
+    const loadChart = () => {
+      if (window.Chart) { renderChart(); return; }
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js";
+      script.onload = renderChart;
+      document.head.appendChild(script);
+    };
+    const renderChart = () => {
+      if (!chartClients.length||!window.Chart) return;
+      const ex = window.ignitiaChart; if (ex) ex.destroy();
+      const ctx = document.getElementById("dashChart"); if (!ctx) return;
+      window.ignitiaChart = new window.Chart(ctx,{ type:"bar", data:{ labels:chartClients.map(c=>c.name.length>10?c.name.slice(0,10)+"…":c.name), datasets:[{ data:chartClients.map(c=>c.last_score), backgroundColor:chartClients.map(c=>c.last_score<=4?"#E24B4A":c.last_score<=7?"#d29922":"#3fb950"), borderRadius:0 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ min:0, max:10, ticks:{ stepSize:2, color:"#484f58", font:{ family:"'Cordia New',monospace", size:9 } }, grid:{ color:"rgba(255,255,255,0.03)" } }, x:{ ticks:{ color:"#484f58", font:{ family:"'Cordia New',monospace", size:9 }, autoSkip:false, maxRotation:45 }, grid:{ display:false } } } } });
+    };
+    loadChart();
   },[clients.length]);
 
   const stats = [
@@ -485,12 +511,12 @@ function SaveClientModal({ onSave, onSkip, defaultName="", defaultUrl="", defaul
   </div>);
 }
 
-function ReauditModal({ client, onCompare, onFresh, onCancel }) {
+function ReauditModal({ client, auditCount, onCompare, onFresh, onCancel }) {
   const { t } = useLang();
   return (<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
     <div style={{background:"#0f141a",border:"1px solid rgba(255,255,255,0.05)",borderRadius:8,padding:32,maxWidth:400,width:"100%"}}>
       <div style={{fontFamily:"'Supply',monospace",fontWeight:700,fontSize:18,color:"#fff",textTransform:"uppercase",marginBottom:4}}>{t("reauditTitle")}: {client.name}</div>
-      <div style={{fontFamily:"'Cordia New',monospace",fontSize:11,color:"#484f58",marginBottom:24}}>{client.last_audit||"—"}</div>
+      <div style={{fontFamily:"'Cordia New',monospace",fontSize:11,color:"#484f58",marginBottom:24}}>{auditCount} {auditCount===1?t("prevLabel"):t("prevLabelPlural")} · {client.last_audit||"—"}</div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         <button onClick={onCompare} style={{background:"rgba(162,201,255,0.05)",border:"1px solid rgba(162,201,255,0.2)",color:"#a2c9ff",padding:14,cursor:"pointer",fontFamily:"'Cordia New',monospace",fontSize:11,fontWeight:700,textAlign:"left"}}>{t("compareBtn")}<div style={{fontSize:10,color:"#484f58",marginTop:4,fontWeight:400}}>{t("compareDesc")}</div></button>
         <button onClick={onFresh} style={{background:"rgba(255,69,0,0.05)",border:"1px solid rgba(255,69,0,0.2)",color:"#FF4500",padding:14,cursor:"pointer",fontFamily:"'Cordia New',monospace",fontSize:11,fontWeight:700,textAlign:"left"}}>{t("freshBtn")}<div style={{fontSize:10,color:"#484f58",marginTop:4,fontWeight:400}}>{t("freshDesc")}</div></button>
@@ -501,7 +527,7 @@ function ReauditModal({ client, onCompare, onFresh, onCancel }) {
 }
 
 // ─── History ───────────────────────────────────────────────────────
-function HistoryView({ history, clients }) {
+function HistoryView({ history, clients, onLoad, onDelete }) {
   const { t } = useLang();
   const [search,setSearch] = useState(""); const [filter,setFilter] = useState("todos");
   const getClientName = id => clients.find(c=>c.id===id)?.name||null;
@@ -523,7 +549,7 @@ function HistoryView({ history, clients }) {
       <div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:3}}>Client</div>{getClientName(entry.client_id)?<span style={{background:"#31353c",padding:"2px 8px",fontFamily:"'Cordia New',monospace",fontSize:10,color:"#FF4500",fontWeight:700,textTransform:"uppercase"}}>{getClientName(entry.client_id)}</span>:<span style={{color:"#484f58",fontSize:10}}>—</span>}</div>
       <div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:3}}>{t("performance")}</div>{entry.score?<ScoreBadge score={entry.score}/>:<span style={{color:"#484f58",fontSize:10}}>—</span>}</div>
       <div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:3}}>{t("queryContext")}</div><div style={{fontFamily:"'Cordia New',monospace",fontSize:11,color:"rgba(255,255,255,0.5)",fontStyle:"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>"{entry.query}"</div></div>
-      <div style={{display:"flex",gap:12,alignItems:"center"}}><button style={{background:"none",border:"none",color:"#FF4500",fontFamily:"'Cordia New',monospace",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",cursor:"pointer"}}>{t("viewBtn")}</button></div>
+      <div style={{display:"flex",gap:12,alignItems:"center"}}><button onClick={()=>onLoad(entry)} style={{background:"none",border:"none",color:"#FF4500",fontFamily:"'Cordia New',monospace",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",cursor:"pointer"}}>{t("viewBtn")}</button><button onClick={()=>onDelete(entry.id)} style={{background:"none",border:"none",color:"#484f58",cursor:"pointer",fontSize:13}} onMouseOver={e=>e.currentTarget.style.color="#E24B4A"} onMouseOut={e=>e.currentTarget.style.color="#484f58"}>🗑</button></div>
     </div>))}</div>)}
   </div>);
 }
@@ -689,8 +715,8 @@ function App() {
 
   const STARTER_CONFIGS = [
     { icon:"🔍", label:t("auditBusiness"), fields:[{key:"nombre",label:t("businessName"),placeholder:t("businessNamePlaceholder")},{key:"url",label:t("businessUrl"),placeholder:t("businessUrlPlaceholder")},{key:"contexto",label:t("contextLabel"),placeholder:t("contextPlaceholder"),multiline:true}], build:v=>`${t("starterAudit")} ${v.nombre} - ${v.url}${v.contexto?`\n\nContexto: ${v.contexto}`:""}` },
-    { icon:"🎯", label:t("realKeywords"), fields:[{key:"negocio",label:t("businessCity"),placeholder:t("businessCityPlaceholder")}], build:v=>`${t("starterKeywords")} ${v.negocio}` },
-    { icon:"🚀", label:t("quickWins"), fields:[{key:"url",label:t("siteUrl"),placeholder:t("siteUrlPlaceholder")}], build:v=>`${t("starterWins")} ${v.url}` },
+    { icon:"🎯", label:t("realKeywords"), fields:[{key:"negocio",label:t("businessCity"),placeholder:t("businessCityPlaceholder")},{key:"contexto",label:t("contextLabel"),placeholder:t("contextPlaceholder"),multiline:true}], build:v=>`${t("starterKeywords")} ${v.negocio}${v.contexto?"\n\nContexto: "+v.contexto:""}` },
+    { icon:"🚀", label:t("quickWins"), fields:[{key:"url",label:t("siteUrl"),placeholder:t("siteUrlPlaceholder")},{key:"contexto",label:t("contextLabel"),placeholder:t("contextPlaceholder"),multiline:true}], build:v=>`${t("starterWins")} ${v.url}${v.contexto?"\n\nContexto: "+v.contexto:""}` },
   ];
 
   const globalStyles = `
@@ -709,7 +735,7 @@ function App() {
 
   return (<LangContext.Provider value={{lang,t,setLang}}>
     <style>{globalStyles}</style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"/>
+    
     {!session ? <LoginScreen/> : (
       <div style={{minHeight:"100vh",background:"#060a10"}}>
         <TopBar setView={setView}/>
@@ -717,10 +743,10 @@ function App() {
         <main style={{marginLeft:240,paddingTop:64,minHeight:"100vh",width:"calc(100% - 240px)"}}>
           <div style={{padding:"36px 36px 0",width:"100%",maxWidth:1100,boxSizing:"border-box",margin:"0 auto"}}>
             {view==="dashboard"&&<DashboardView clients={clients} history={history} onNewAudit={()=>{setMessages([]);setActiveClient(null);setView("chat");}} onSelectClient={handleSelectClient}/>}
-            {view==="history"&&<HistoryView history={history} clients={clients}/>}
+            {view==="history"&&<HistoryView history={history} clients={clients} onLoad={e=>{setMessages([{role:"user",content:e.query},{role:"assistant",content:e.result}]);setActiveClient(null);setView("chat");}} onDelete={async(id)=>{await dbDeleteAudit(id);const newHistory=await dbLoadHistory(session.user.id);setHistory(newHistory);}}/>}
             {view==="chat"&&(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 100px)"}}>
               {saveModal&&<SaveClientModal defaultName={saveModal.query.replace(/.*?:\s*/,"").split(" - ")[0]||""} defaultUrl={saveModal.query.includes("http")?saveModal.query.match(/https?:\/\/[^\s]+/)?.[0]||"":""} defaultSector={saveModal.detectedSector||""} onSave={handleSaveClient} onSkip={()=>setSaveModal(null)}/>}
-              {reauditModal&&<ReauditModal client={reauditModal} onCompare={handleCompare} onFresh={handleFresh} onCancel={()=>{setReauditModal(null);setActiveClient(null);}}/>}
+              {reauditModal&&<ReauditModal client={reauditModal} auditCount={history.filter(h=>h.client_id===reauditModal.id).length} onCompare={handleCompare} onFresh={handleFresh} onCancel={()=>{setReauditModal(null);setActiveClient(null);}}/>}
               {activeClient&&(<div style={{padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)",marginBottom:12,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
                 <span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.2em"}}>Active_Audit:</span>
                 <span style={{fontFamily:"'Supply',monospace",fontWeight:700,fontSize:13,color:"#FF4500",textTransform:"uppercase"}}>{activeClient.name}</span>
@@ -745,7 +771,7 @@ function App() {
                     const score = isAssistant ? extractScore(msg.content) : null;
                     const radar = isAssistant ? extractRadar(msg.content) : null;
                     const wins = isAssistant ? extractQuickWins(msg.content) : [];
-                    const lastAuditEntry = history[0];
+                    const auditEntry = isAssistant ? history.find(h=>h.query===messages[i-1]?.content) : null;
                     const sections = isAssistant ? parseMarkdownSections(msg.content) : [];
                     const filteredSections = clientMode ? sections.filter(s=>!s.title||(s.title&&!s.title.includes("NOTAS")&&!s.title.includes("INTERNAL")&&!s.title.includes("🛠")&&!s.title.includes("DICCI")&&!s.title.includes("GLOSS")&&!s.title.includes("📚"))) : sections;
                     return (<div key={i}>
@@ -760,7 +786,7 @@ function App() {
                             {score&&<ScoreHero score={score} lang={lang}/>}
                             <ReportIndex sections={filteredSections} lang={lang}/>
                             {radar&&<RadarChart data={radar} lang={lang}/>}
-                            {wins.length>0&&<QuickWinsChecklist wins={wins} auditId={lastAuditEntry?.id} userId={session.user.id}/>}
+                            {wins.length>0&&<QuickWinsChecklist wins={wins} auditId={auditEntry?.id} userId={session.user.id}/>}
                             {filteredSections.map((section,si)=>{
                               const s = getStyle(section.title);
                               return (<div key={si} id={`section-${si}`} style={{background:s.bg,border:`1px solid ${s.border}`,borderRadius:8,padding:"16px 20px",marginBottom:10}}>
