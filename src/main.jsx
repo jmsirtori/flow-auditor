@@ -453,7 +453,7 @@ function App(){
         <TopBar setView={setView}/>
         <Sidebar currentView={view} setView={v=>{setView(v);if(v==="chat"){setMessages([]);setActiveClient(null);}}} session={session} onLogout={()=>supabase.auth.signOut()}/>
      <main style={{marginLeft:240,paddingTop:64,minHeight:"100vh",width:"calc(100% - 240px)"}}>
-         <div style={{padding:"36px 36px 0",maxWidth:1100,width:"100%"}}>
+         <div style={{padding:"36px 36px 0",maxWidth:1100,width:"100%",boxSizing:"border-box"}}>
             {view==="dashboard"&&<DashboardView onNewAudit={()=>{setMessages([]);setActiveClient(null);setView("chat");}} onSelectClient={handleSelectClient}/>}
             {view==="history"&&<HistoryView onLoad={e=>{setMessages([{role:"user",content:e.query},{role:"assistant",content:e.result}]);setActiveClient(null);setView("chat");}}/>}
             {view==="chat"&&(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 100px)"}}>
@@ -491,7 +491,7 @@ function App(){
                   <div ref={bottomRef}/>
                 </div>
               </div>
-              <div style={{position:"fixed",bottom:0,left:240,right:0,padding:"16px 36px 20px",background:"linear-gradient(to top, #060a10 60%, transparent)"}}>
+              <div style={{position:"fixed",bottom:0,left:240,right:0,padding:"16px 36px 20px",boxSizing:"border-box",background:"linear-gradient(to top, #060a10 60%, transparent)"}}>
                 <div style={{maxWidth:1064,margin:"0 auto",background:"#171c22",border:"1px solid rgba(255,255,255,0.05)",borderRadius:12,boxShadow:"0 -4px 40px rgba(0,0,0,0.3)",padding:"8px 8px 8px 20px",display:"flex",alignItems:"center",gap:12}}>
                   <span style={{color:"#484f58",fontSize:14,flexShrink:0}}>{">"}_</span>
                   <textarea ref={textareaRef} rows={2} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}}} placeholder={activeClient?`${t("clientPlaceholder")} ${activeClient.name}...`:t("inputPlaceholder")} style={{flex:1,background:"transparent",border:"none",outline:"none",color:"#dfe2ec",fontFamily:"'Cordia New',monospace",fontSize:12,resize:"none",lineHeight:1.6,textTransform:"uppercase"}}/>
