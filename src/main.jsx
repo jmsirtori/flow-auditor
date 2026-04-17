@@ -61,8 +61,8 @@ ${isEN ? "REAL PAGESPEED DATA (use these exact values, do not estimate):" : "DAT
 - ${isEN ? "Sales Hook: top weak point." : "Gancho de Venta: punto débil principal."}
 
 ## 📄 ${isEN ? "CLIENT REPORT" : "REPORTE PARA EL CLIENTE"}
-### ⚡ ${isEN ? "Digital Health Diagnosis" : "Diagnóstico de Salud Digital"}
-${isEN ? "Score 1-10 Friction (1=easy, 10=impossible to find)." : "Calificación 1-10 de Fricción (1=muy fácil encontrarte, 10=imposible)."}
+### ⚡ ${isEN ? "Digital Presence Score" : "Score de Presencia Digital"}
+${isEN ? "Score 1-10 of Digital Presence (1=very weak presence, 10=excellent presence). Evaluate how solid their overall online presence is." : "Score 1-10 de Presencia Digital (1=presencia muy débil, 10=presencia excelente). Evalúa qué tan sólida es su presencia online en conjunto."}
 ### 🎯 ${isEN ? "Your Google Showcase" : "Tu Vitrina en Google"}
 ### 🔍 ${isEN ? "The Road Bumps" : "Los Baches en el Camino"}
 ### 🏗️ ${isEN ? "Your Main Sign (H1)" : "Tu Letrero Principal (H1)"}
@@ -86,7 +86,7 @@ ${isEN ? "2 main competitors in Google Top 3. For each: name, URL, 2-3 advantage
 ${isEN ? "Define H1, SEO, NAP, Keywords, Friction, Core Web Vitals with simple analogies." : "Define H1, SEO, NAP, Keywords, Fricción, Core Web Vitals con analogías simples."}
 
 ${isEN?"At the end always include ALL of these tags (required for dashboard):":"Al final incluye SIEMPRE TODOS estos tags (requeridos para el dashboard):"}
-IGNITIA_SCORE: [${isEN?"friction number 1-10":"número de fricción 1-10"}]
+IGNITIA_SCORE: [${isEN?"digital presence score 1-10":"score de presencia digital 1-10"}]
 IGNITIA_SECTOR: [${isEN?"specific detected sector, max 4 words":"sector específico detectado, máximo 4 palabras"}]
 IGNITIA_RADAR: SEO=${isEN?"[1-10]":"[1-10]"},LOCAL=${isEN?"[1-10]":"[1-10]"},CONTENT=${isEN?"[1-10]":"[1-10]"},SPEED=${isEN?"[1-10]":"[1-10]"},SOCIAL=${isEN?"[1-10]":"[1-10]"}
 
@@ -260,7 +260,7 @@ function ScoreBadge({ score, size="sm" }) {
 function TrendBadge({ current, previous }) {
   if (!current || !previous) return null;
   const diff = (current - previous).toFixed(1);
-  const up = current < previous;
+  const up = current > previous;
   const color = up ? "#3fb950" : "#E24B4A";
   const arrow = up ? "↓" : "↑";
   return (<span style={{fontSize:10,color,fontFamily:"'Cordia New',monospace",fontWeight:700,marginLeft:4}}>{arrow}{Math.abs(diff)}</span>);
@@ -378,7 +378,7 @@ function ScoreHero({ score, lang }) {
   if (!score) return null;
   const color = score<=4?"#E24B4A":score<=7?"#d29922":"#3fb950";
   const label = score<=4?(lang==="en"?"Critical":"Crítico"):score<=7?(lang==="en"?"Regular":"Regular"):(lang==="en"?"Good":"Bueno");
-  const desc = score<=4?(lang==="en"?"Immediate action needed":"Acción inmediata necesaria"):score<=7?(lang==="en"?"Several opportunities":"Varias oportunidades"):(lang==="en"?"Well positioned":"Bien posicionado");
+  const desc = score<=4?(lang==="en"?"Very weak digital presence — immediate action needed":"Presencia digital muy débil — acción inmediata"):score<=7?(lang==="en"?"Moderate presence — several opportunities to improve":"Presencia moderada — varias oportunidades de mejora"):(lang==="en"?"Strong digital presence — well positioned":"Presencia digital sólida — bien posicionado");
   return (<div style={{background:`${color}08`,border:`1px solid ${color}33`,borderRadius:10,padding:"20px 24px",marginBottom:16,display:"flex",alignItems:"center",gap:24}}>
     <div style={{textAlign:"center",flexShrink:0}}>
       <div style={{fontFamily:"'Supply',monospace",fontWeight:700,fontSize:52,color,lineHeight:1}}>{score}</div>
