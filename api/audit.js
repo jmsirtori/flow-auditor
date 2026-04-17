@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "API Key no configurada en Vercel" });
+  if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY no configurada" });
 
   try {
     const { messages, tools, max_tokens, model, system } = req.body;
@@ -18,13 +18,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model,
         max_tokens,
-        system: [
-          {
-            type: "text",
-            text: system,
-            cache_control: { type: "ephemeral" },
-          }
-        ],
+        system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
         tools,
         messages,
       }),
