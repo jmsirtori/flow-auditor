@@ -234,7 +234,7 @@ async function runAuditLoop(apiMessages, onStatus, systemOverride) {
   let totalInputTokens = 0; let totalOutputTokens = 0; let totalCost = 0;
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     onStatus(turn === 0 ? "connecting" : `processing:${turn}`);
-    const res = await fetch("/api/audit", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:4000, system:systemOverride, tools:[{type:"web_search_20250305",name:"web_search"}], messages:msgs }) });
+    const res = await fetch("/api/audit", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:selectedModel||"claude-sonnet-4-6", max_tokens:selectedModel==="claude-haiku-4-5-20251001"?2000:4000, system:systemOverride, tools:[{type:"web_search_20250305",name:"web_search"}], messages:msgs }) });
     if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err?.error?.message||`HTTP ${res.status}`); }
     const data = await res.json(); const { content, stop_reason } = data;
     if (data._cost) {
@@ -603,7 +603,7 @@ function StarterCard({ icon, label, fields, onSubmit }) {
 }
 
 // ─── Module Toggles ────────────────────────────────────────────────
-function ModuleToggles({ modules, setModules }) {
+function ModuleToggles({ modules, setModules, selectedModel, setSelectedModel }) {
   const { t } = useLang();
   const [open,setOpen] = useState(false);
   const items = [
@@ -613,9 +613,21 @@ function ModuleToggles({ modules, setModules }) {
   const active = Object.values(modules).filter(Boolean).length;
   return (<div style={{marginBottom:16}}>
     <button onClick={()=>setOpen(o=>!o)} style={{background:"transparent",border:"1px solid #31353c",color:active>0?"#FF4500":"#484f58",padding:"6px 12px",borderRadius:6,cursor:"pointer",fontFamily:"'Cordia New',monospace",fontSize:10,textTransform:"uppercase",letterSpacing:"0.1em",display:"flex",alignItems:"center",gap:6}}>
-      ⚙ {t("modules")}{active>0&&<span style={{background:"#FF4500",color:"#fff",borderRadius:10,padding:"1px 6px",fontSize:9,fontWeight:700}}>{active}</span>}
+      ⚙ {t("modules")} · <span style={{color:selectedModel==="claude-haiku-4-5-20251001"?"#3fb950":"#FF4500",fontWeight:700}}>{selectedModel==="claude-haiku-4-5-20251001"?"Haiku":"Sonnet"}</span>{active>0&&<span style={{background:"#FF4500",color:"#fff",borderRadius:10,padding:"1px 6px",fontSize:9,fontWeight:700,marginLeft:4}}>{active}</span>}
     </button>
     {open&&(<div style={{marginTop:8,background:"#0f141a",border:"1px solid #21262d",borderRadius:8,overflow:"hidden"}}>
+      <div style={{padding:"10px 16px",borderBottom:"1px solid #161b22"}}>
+        <div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.15em",marginBottom:8}}>Modelo</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {[
+            {id:"claude-sonnet-4-6",label:"Sonnet 4.6",desc:"Máxima calidad",cost:"$0.05/audit",color:"#FF4500"},
+            {id:"claude-haiku-4-5-20251001",label:"Haiku 4.5",desc:"Rápido y económico",cost:"$0.01/audit",color:"#3fb950"},
+          ].map(m=>(<button key={m.id} onClick={()=>setSelectedModel(m.id)} style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:2,padding:"8px 12px",border:`1px solid ${selectedModel===m.id?m.color:"#31353c"}`,borderRadius:6,background:selectedModel===m.id?`${m.color}15`:"transparent",cursor:"pointer",transition:"all .15s"}}>
+            <span style={{fontFamily:"'Cordia New',monospace",fontSize:11,fontWeight:700,color:selectedModel===m.id?m.color:"#dfe2ec"}}>{m.label}</span>
+            <span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58"}}>{m.desc} · <span style={{color:selectedModel===m.id?m.color:"#484f58"}}>{m.cost}</span></span>
+          </button>))}
+        </div>
+      </div>
       {items.map(item=>(<div key={item.key} onClick={()=>setModules(m=>({...m,[item.key]:!m[item.key]}))} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:"1px solid #161b22",cursor:"pointer"}} onMouseOver={e=>e.currentTarget.style.background="#171c22"} onMouseOut={e=>e.currentTarget.style.background=""}>
         <div style={{width:32,height:18,borderRadius:9,background:modules[item.key]?"#FF4500":"#31353c",position:"relative",flexShrink:0,transition:"background .2s"}}><div style={{width:14,height:14,borderRadius:"50%",background:"#fff",position:"absolute",top:2,left:modules[item.key]?16:2,transition:"left .2s"}}/></div>
         <div style={{flex:1}}><div style={{fontFamily:"'Cordia New',monospace",fontSize:11,fontWeight:700,color:"#dfe2ec"}}>{item.label}</div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",marginTop:1}}>{item.desc}</div></div>
@@ -640,6 +652,7 @@ function App() {
   const [activeClient,setActiveClient] = useState(null); const [toast,setToast] = useState(null);
   const [clientMode,setClientMode] = useState(false);
   const [modules,setModules] = useState({ pagespeed:false, sentiment:false });
+  const [selectedModel,setSelectedModel] = useState(()=>localStorage.getItem('ignitia_model')||'claude-sonnet-4-6');
   const [addContextMode,setAddContextMode] = useState(false); const [addContextInput,setAddContextInput] = useState("");
   const bottomRef = useRef(null); const textareaRef = useRef(null);
 
@@ -694,7 +707,7 @@ function App() {
       const quickWins = extractQuickWins(result);
       const clientId = activeClient?.id||null;
 
-      const saved = await dbSaveAudit({ query:userText, result, score:score||null, client_id:clientId, input_tokens:tokens?.input||null, output_tokens:tokens?.output||null, cost:tokens?.cost||null }, session.user.id);
+      const saved = await dbSaveAudit({ query:userText, result, score:score||null, client_id:clientId, input_tokens:tokens?.input||null, output_tokens:tokens?.output||null, cost:tokens?.cost||null, model:selectedModel }, session.user.id);
       const newHistory = await dbLoadHistory(session.user.id); setHistory(newHistory);
 
       if (saved && quickWins.length) await dbSaveQuickWins(quickWins, saved.id, clientId, session.user.id);
@@ -796,7 +809,7 @@ function App() {
                   <div style={{marginBottom:24}}>
                     <div style={{fontFamily:"'Supply',monospace",fontWeight:700,fontSize:26,color:"#fff",textTransform:"uppercase",letterSpacing:"-0.01em",marginBottom:4}}>{activeClient?`Active_Audit: ${activeClient.name}`:"Ignitia SEO Console"}</div>
                     <div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.2em",marginBottom:16}}>{activeClient?`Status: Online // ${activeClient.sector||""}`:""}</div>
-                    <ModuleToggles modules={modules} setModules={setModules}/>
+                    <ModuleToggles modules={modules} setModules={setModules} selectedModel={selectedModel} setSelectedModel={m=>{setSelectedModel(m);localStorage.setItem("ignitia_model",m);}}/>
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:12}}>{STARTER_CONFIGS.map(s=><StarterCard key={s.label} icon={s.icon} label={s.label} fields={s.fields} onSubmit={values=>sendMessage(s.build(values))}/>)}</div>
                 </div>)}
@@ -817,7 +830,7 @@ function App() {
                         <div style={{display:"flex",gap:10}}>
                           <div style={{width:28,height:28,borderRadius:"50%",background:"#FF4500",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12}}>🔥</div>
                           <div style={{flex:1,minWidth:0}}>
-                            <div style={{marginBottom:10,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#FF4500",textTransform:"uppercase",letterSpacing:"0.15em",fontWeight:700}}>Ignitia AI // {t("reportLabel")}</span>{score&&<ScoreBadge score={score}/>}<span style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>{auditEntry?.cost&&<span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#3fb950"}}>💸 ${auditEntry.cost.toFixed(4)}</span>}<span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58"}}>{t("saved")}</span></span></div>
+                            <div style={{marginBottom:10,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#FF4500",textTransform:"uppercase",letterSpacing:"0.15em",fontWeight:700}}>Ignitia AI // {t("reportLabel")}</span>{score&&<ScoreBadge score={score}/>}<span style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>{auditEntry?.cost&&<span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#3fb950"}}>💸 ${auditEntry.cost.toFixed(4)}</span>}{auditEntry?.model&&<span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58"}}>{auditEntry.model.includes('haiku')?'Haiku 4.5':'Sonnet 4.6'}</span>}<span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58"}}>{t("saved")}</span></span></div>
                             {score&&<ScoreHero score={score} lang={lang}/>}
                             <ReportIndex sections={filteredSections} lang={lang}/>
                             {radar&&<RadarChart data={radar} lang={lang}/>}
