@@ -773,12 +773,12 @@ function App() {
   };
 
   const handleSelectClient = async (client) => {
-    setActiveClient(client); setView("chat");
+    setActiveClient(client);
     const fresh = await dbLoadHistory(session.user.id);
     setHistory(fresh);
     const clientAudits = fresh.filter(h=>h.client_id===client.id);
-    if (clientAudits.length>0) setReauditModal(client);
-    else { setMessages([]); setInput(`${t("starterAudit")} ${client.name}${client.url?" - "+client.url:""}`); setTimeout(()=>textareaRef.current?.focus(),100); }
+    if (clientAudits.length>0) { setReauditModal(client); setView("chat"); }
+    else { setMessages([]); setInput(`${t("starterAudit")} ${client.name}${client.url?" - "+client.url:""}`); setView("chat"); setTimeout(()=>textareaRef.current?.focus(),100); }
   };
 
   const handleCompare = async () => {
@@ -826,14 +826,8 @@ function App() {
         <Sidebar currentView={view} setView={v=>{setView(v);if(v==="chat"){setMessages([]);setActiveClient(null);}}} session={session} onLogout={()=>supabase.auth.signOut()}/>
         <main style={{marginLeft:240,paddingTop:64,minHeight:"100vh",width:"calc(100% - 240px)"}}>
           <div style={{padding:"36px 36px 0",width:"100%",maxWidth:1100,boxSizing:"border-box",margin:"0 auto"}}>
-            {view==="dashboard"&&<DashboardView clients={clients} history={history} onNewAudit={()=>{setMessages([]);setActiveClient(null);setView("chat");}} onSelectClient={handleSelectClient} onViewClient={async(client)=>{
-  const fresh = await dbLoadHistory(session.user.id);
-  setHistory(fresh);
-  const lastAudit = fresh.find(h=>h.client_id===client.id);
-  if(lastAudit){setMessages([{role:"user",content:lastAudit.query},{role:"assistant",content:lastAudit.result}]);setActiveClient(client);setView("chat");}
-  else{setMessages([]);setActiveClient(client);setInput(`${t("starterAudit")} ${client.name}${client.url?" - "+client.url:""}`);setView("chat");}
-}}/>}
-            {view==="history"&&<HistoryView history={history} clients={clients} onLoad={e=>{setMessages([{role:"user",content:e.query},{role:"assistant",content:e.result}]);setActiveClient(null);setView("chat");}} onDelete={async(id)=>{await dbDeleteAudit(id);const newHistory=await dbLoadHistory(session.user.id);setHistory(newHistory);}}/>}
+            {view==="dashboard"&&<DashboardView clients={clients} history={history} onNewAudit={()=>{setMessages([]);setActiveClient(null);setView("chat");}} onSelectClient={handleSelectClient} onViewClient={async(client)=>{const fresh=await dbLoadHistory(session.user.id);setHistory(fresh);const lastAudit=fresh.find(h=>h.client_id===client.id);if(lastAudit){setMessages([{role:"user",content:lastAudit.query},{role:"assistant",content:lastAudit.result}]);setActiveClient(client);setView("chat");}else{setMessages([]);setActiveClient(client);setInput(`${t("starterAudit")} ${client.name}${client.url?" - "+client.url:""}`);setView("chat");}}}/>}
+            {view==="history"&&<HistoryView history={history} clients={clients} onLoad={e=>{setMessages([{role:"user",content:e.query},{role:"assistant",content:e.result}]);setActiveClient(null);setView("chat");}} onDelete={async(id)=>{if(!window.confirm("¿Borrar esta auditoría?"))return;await dbDeleteAudit(id);const newHistory=await dbLoadHistory(session.user.id);setHistory(newHistory);}}/>}
             {view==="chat"&&(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 100px)"}}>
               {saveModal&&<SaveClientModal defaultName={saveModal.query.replace(/.*?:\s*/,"").split(" - ")[0]||""} defaultUrl={saveModal.query.includes("http")?saveModal.query.match(/https?:\/\/[^\s]+/)?.[0]||"":""} defaultSector={saveModal.detectedSector||""} onSave={handleSaveClient} onSkip={()=>setSaveModal(null)}/>}
               {reauditModal&&<ReauditModal client={reauditModal} auditCount={history.filter(h=>h.client_id===reauditModal.id).length} onCompare={handleCompare} onFresh={handleFresh} onCancel={()=>{setReauditModal(null);setActiveClient(null);}}/>}
