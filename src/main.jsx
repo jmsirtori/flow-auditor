@@ -586,6 +586,18 @@ function ReauditModal({ client, auditCount, onCompare, onFresh, onCancel }) {
   </div>);
 }
 
+// ─── Delete Button ─────────────────────────────────────────────────
+function DeleteButton({ onConfirm }) {
+  const [confirming, setConfirming] = useState(false);
+  if (confirming) return (
+    <div style={{display:"flex",alignItems:"center",gap:4}}>
+      <button onClick={()=>{onConfirm();setConfirming(false);}} style={{background:"#E24B4A22",border:"1px solid #E24B4A",color:"#E24B4A",cursor:"pointer",fontSize:9,fontFamily:"'Cordia New',monospace",fontWeight:700,padding:"2px 6px",borderRadius:3,textTransform:"uppercase"}}>Sí</button>
+      <button onClick={()=>setConfirming(false)} style={{background:"transparent",border:"1px solid #31353c",color:"#484f58",cursor:"pointer",fontSize:9,fontFamily:"'Cordia New',monospace",padding:"2px 6px",borderRadius:3,textTransform:"uppercase"}}>No</button>
+    </div>
+  );
+  return <button onClick={()=>setConfirming(true)} style={{background:"none",border:"none",color:"#484f58",cursor:"pointer",fontSize:13}} onMouseOver={e=>e.currentTarget.style.color="#E24B4A"} onMouseOut={e=>e.currentTarget.style.color="#484f58"}>🗑</button>;
+}
+
 // ─── History ───────────────────────────────────────────────────────
 function HistoryView({ history, clients, onLoad, onDelete }) {
   const { t } = useLang();
@@ -610,7 +622,7 @@ function HistoryView({ history, clients, onLoad, onDelete }) {
       <div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:3}}>{t("performance")}</div>{entry.score?<ScoreBadge score={entry.score}/>:<span style={{color:"#484f58",fontSize:10}}>—</span>}</div>
       <div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:3}}>{t("queryContext")}</div><div style={{fontFamily:"'Cordia New',monospace",fontSize:11,color:"rgba(255,255,255,0.5)",fontStyle:"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>"{entry.query}"</div></div>
       <div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:3}}>Costo</div><div style={{fontFamily:"'Cordia New',monospace",fontSize:11,color:entry.cost?"#3fb950":"#484f58",fontWeight:entry.cost?700:400}}>{entry.cost?`$${entry.cost.toFixed(4)}`:"—"}</div></div>
-      <div style={{display:"flex",gap:12,alignItems:"center"}}><button onClick={()=>onLoad(entry)} style={{background:"none",border:"none",color:"#FF4500",fontFamily:"'Cordia New',monospace",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",cursor:"pointer"}}>{t("viewBtn")}</button><button onClick={()=>onDelete(entry.id)} style={{background:"none",border:"none",color:"#484f58",cursor:"pointer",fontSize:13}} onMouseOver={e=>e.currentTarget.style.color="#E24B4A"} onMouseOut={e=>e.currentTarget.style.color="#484f58"}>🗑</button></div>
+      <div style={{display:"flex",gap:12,alignItems:"center"}}><button onClick={()=>onLoad(entry)} style={{background:"none",border:"none",color:"#FF4500",fontFamily:"'Cordia New',monospace",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",cursor:"pointer"}}>{t("viewBtn")}</button><DeleteButton onConfirm={()=>onDelete(entry.id)}/></div>
     </div>))}</div>)}
   </div>);
 }
@@ -827,7 +839,7 @@ function App() {
         <main style={{marginLeft:240,paddingTop:64,minHeight:"100vh",width:"calc(100% - 240px)"}}>
           <div style={{padding:"36px 36px 0",width:"100%",maxWidth:1100,boxSizing:"border-box",margin:"0 auto"}}>
             {view==="dashboard"&&<DashboardView clients={clients} history={history} onNewAudit={()=>{setMessages([]);setActiveClient(null);setView("chat");}} onSelectClient={handleSelectClient} onViewClient={async(client)=>{const fresh=await dbLoadHistory(session.user.id);setHistory(fresh);const lastAudit=fresh.find(h=>h.client_id===client.id);if(lastAudit){setMessages([{role:"user",content:lastAudit.query},{role:"assistant",content:lastAudit.result}]);setActiveClient(client);setView("chat");}else{setMessages([]);setActiveClient(client);setInput(`${t("starterAudit")} ${client.name}${client.url?" - "+client.url:""}`);setView("chat");}}}/>}
-            {view==="history"&&<HistoryView history={history} clients={clients} onLoad={e=>{setMessages([{role:"user",content:e.query},{role:"assistant",content:e.result}]);setActiveClient(null);setView("chat");}} onDelete={async(id)=>{if(!window.confirm("¿Borrar esta auditoría?"))return;await dbDeleteAudit(id);const newHistory=await dbLoadHistory(session.user.id);setHistory(newHistory);}}/>}
+            {view==="history"&&<HistoryView history={history} clients={clients} onLoad={e=>{setMessages([{role:"user",content:e.query},{role:"assistant",content:e.result}]);setActiveClient(null);setView("chat");}} onDelete={async(id)=>{await dbDeleteAudit(id);const newHistory=await dbLoadHistory(session.user.id);setHistory(newHistory);}}/>}
             {view==="chat"&&(<div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 100px)"}}>
               {saveModal&&<SaveClientModal defaultName={saveModal.query.replace(/.*?:\s*/,"").split(" - ")[0]||""} defaultUrl={saveModal.query.includes("http")?saveModal.query.match(/https?:\/\/[^\s]+/)?.[0]||"":""} defaultSector={saveModal.detectedSector||""} onSave={handleSaveClient} onSkip={()=>setSaveModal(null)}/>}
               {reauditModal&&<ReauditModal client={reauditModal} auditCount={history.filter(h=>h.client_id===reauditModal.id).length} onCompare={handleCompare} onFresh={handleFresh} onCancel={()=>{setReauditModal(null);setActiveClient(null);}}/>}
