@@ -240,12 +240,12 @@ async function fetchPageSpeed(url) {
   if (!res.ok) return null;
   return await res.json();
 }
-async function runAuditLoop(apiMessages, onStatus, systemOverride) {
+async function runAuditLoop(apiMessages, onStatus, systemOverride, model="claude-sonnet-4-6") {
   const MAX_TURNS = 12; let msgs = [...apiMessages];
   let totalInputTokens = 0; let totalOutputTokens = 0; let totalCost = 0;
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     onStatus(turn === 0 ? "connecting" : `processing:${turn}`);
-    const res = await fetch("/api/audit", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:selectedModel||"claude-sonnet-4-6", max_tokens:selectedModel==="claude-haiku-4-5-20251001"?2000:4000, system:systemOverride, tools:[{type:"web_search_20250305",name:"web_search"}], messages:msgs }) });
+    const res = await fetch("/api/audit", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model, max_tokens:model==="claude-haiku-4-5-20251001"?2000:4000, system:systemOverride, tools:[{type:"web_search_20250305",name:"web_search"}], messages:msgs }) });
     if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err?.error?.message||`HTTP ${res.status}`); }
     const data = await res.json(); const { content, stop_reason } = data;
     if (data._cost) {
@@ -711,7 +711,7 @@ function App() {
       : getMasterPrompt(lang, pagespeedData, modules);
 
     try {
-      const { text: result, tokens } = await runAuditLoop(newMessages.map(m=>({role:m.role,content:m.content})), setStatusKey, systemPrompt);
+      const { text: result, tokens } = await runAuditLoop(newMessages.map(m=>({role:m.role,content:m.content})), setStatusKey, systemPrompt, selectedModel);
       setMessages(prev=>[...prev, { role:"assistant", content:result }]);
       const score = extractScore(result);
       const sector = extractSector(result);
