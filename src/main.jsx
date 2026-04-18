@@ -83,7 +83,24 @@ QW5: [${isEN?"action description":"descripción de la acción"}]
 ${isEN ? "2 main competitors in Google Top 3. For each: name, URL, 2-3 advantages, main keywords, friction score. End: Main gap + Immediate opportunity." : "2 competidores principales en Google Top 3. Para cada uno: nombre, URL, 2-3 ventajas, keywords principales, score de fricción. Al final: Brecha principal + Oportunidad inmediata."}
 
 ## 📚 ${isEN ? "GLOSSARY FOR BUSINESS OWNERS" : "DICCIONARIO PARA DUEÑOS"}
-${isEN ? "Define H1, SEO, NAP, Keywords, Friction, Core Web Vitals with simple analogies." : "Define H1, SEO, NAP, Keywords, Fricción, Core Web Vitals con analogías simples."}
+${isEN ? `Define the following terms using simple, physical-world analogies (no technical jargon):
+- H1, SEO, NAP, Keywords, Digital Presence Score
+${pagespeedData ? `- LCP (Largest Contentful Paint): how long until the main content appears
+- FCP (First Contentful Paint): how long until anything appears on screen  
+- TBT (Total Blocking Time): how long the page is frozen and unresponsive
+- CLS (Cumulative Layout Shift): how much the page jumps around while loading
+- Speed Index: how quickly the page looks visually complete
+- Performance Score: Google's overall grade for page speed (0-100)
+- Core Web Vitals: Google's 3 official speed metrics that affect rankings` : ""}` 
+: `Define los siguientes términos con analogías del mundo físico (sin tecnicismos):
+- H1, SEO, NAP, Keywords, Score de Presencia Digital
+${pagespeedData ? `- LCP (Largest Contentful Paint): cuánto tarda en aparecer el contenido principal — como esperar a que abran la puerta de una tienda
+- FCP (First Contentful Paint): cuánto tarda en aparecer cualquier cosa en pantalla — la primera señal de vida
+- TBT (Total Blocking Time): cuánto tiempo la página está congelada e irresponsiva — como un empleado que no puede atenderte porque está ocupado
+- CLS (Cumulative Layout Shift): cuánto se mueve el contenido mientras carga — como leer un menú que sigue cambiando de lugar
+- Speed Index: qué tan rápido se ve visualmente completa la página — la primera impresión de tu vitrina
+- Performance Score: la calificación general de velocidad de Google (0-100) — como una inspección de salud del sitio
+- Core Web Vitals: las 3 métricas oficiales de velocidad de Google que afectan directamente tu posicionamiento en búsquedas` : ""}`}
 
 ${isEN?"At the end always include ALL of these tags (required for dashboard):":"Al final incluye SIEMPRE TODOS estos tags (requeridos para el dashboard):"}
 IGNITIA_SCORE: [${isEN?"digital presence score 1-10":"score de presencia digital 1-10"}]
@@ -719,7 +736,8 @@ function App() {
       const clientId = activeClient?.id||null;
 
       const saved = await dbSaveAudit({ query:userText, result, score:score||null, client_id:clientId, input_tokens:tokens?.input||null, output_tokens:tokens?.output||null, cost:tokens?.cost||null, model:selectedModel }, session.user.id);
-      const newHistory = await dbLoadHistory(session.user.id); setHistory(newHistory);
+      const [freshClients, freshHistory] = await Promise.all([dbLoadClients(session.user.id), dbLoadHistory(session.user.id)]);
+      setClients(freshClients); setHistory(freshHistory);
 
       if (saved && quickWins.length) await dbSaveQuickWins(quickWins, saved.id, clientId, session.user.id);
 
@@ -743,7 +761,12 @@ function App() {
       if (lastAudit && !lastAudit.client_id) {
         await supabase.from("audits").update({ client_id:saved.id }).eq("id",lastAudit.id);
       }
-      const newClients = await dbLoadClients(session.user.id); setClients(newClients);
+      const [newClients, newHistory] = await Promise.all([
+        dbLoadClients(session.user.id),
+        dbLoadHistory(session.user.id)
+      ]);
+      setClients(newClients);
+      setHistory(newHistory);
       setActiveClient(saved); setSaveModal(null);
       setToast(`${name} ${t("toastSaved")}`);
     }
