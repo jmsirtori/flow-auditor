@@ -90,7 +90,18 @@ IGNITIA_SCORE: [${isEN?"digital presence score 1-10":"score de presencia digital
 IGNITIA_SECTOR: [${isEN?"specific detected sector, max 4 words":"sector específico detectado, máximo 4 palabras"}]
 IGNITIA_RADAR: SEO=${isEN?"[1-10]":"[1-10]"},LOCAL=${isEN?"[1-10]":"[1-10]"},CONTENT=${isEN?"[1-10]":"[1-10]"},SPEED=${isEN?"[1-10]":"[1-10]"},SOCIAL=${isEN?"[1-10]":"[1-10]"}
 
-${isEN?"If you cannot verify something: 'Could not verify, please review manually'. Do not say a website is beautiful if it is not functional.":"Si no puedes verificar algo: 'No pude verificar, favor de revisar manualmente'. No digas que una web es bonita si no es funcional."}`;
+${isEN ? `ANTI-HALLUCINATION RULES (mandatory):
+1. VERIFIED DATA: Only present as fact what you found via web search. Always cite the source in parentheses: "947k visits/month (Similarweb, Feb 2026)".
+2. ESTIMATES: If you infer something from indirect signals, prefix it: "Estimated based on [source/observation]:..."
+3. NOT FOUND: If you could not find specific data, write exactly: "Could not verify: [data point] — please review manually."
+4. NEVER invent metrics, rankings, review counts, or traffic numbers. If you did not find it in search results, it does not exist in this report.
+5. TRAINING DATA: Do not use knowledge from your training to fill gaps — only use what the web search returned in this session.` 
+: `REGLAS ANTI-ALUCINACIÓN (obligatorias):
+1. DATOS VERIFICADOS: Solo presenta como hecho lo que encontraste mediante búsqueda web. Siempre cita la fuente entre paréntesis: "947k visitas/mes (Similarweb, Feb 2026)".
+2. ESTIMACIONES: Si infierres algo a partir de señales indirectas, anteponle: "Estimado basado en [fuente/observación]:..."
+3. NO ENCONTRADO: Si no pudiste encontrar un dato específico, escribe exactamente: "No pude verificar: [dato] — favor de revisar manualmente."
+4. NUNCA inventes métricas, posicionamientos, cantidad de reseñas o cifras de tráfico. Si no lo encontraste en los resultados de búsqueda, no existe en este reporte.
+5. DATOS DE ENTRENAMIENTO: No uses conocimiento de tu entrenamiento para llenar vacíos — solo usa lo que el web search devolvió en esta sesión.`}`;
 
   return `${system}\n\n${sequence}${pagespeedContext}\n\n${structure}`;
 }
