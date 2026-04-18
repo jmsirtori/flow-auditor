@@ -231,19 +231,30 @@ async function fetchPageSpeed(url) {
 }
 async function runAuditLoop(apiMessages, onStatus, systemOverride) {
   const MAX_TURNS = 12; let msgs = [...apiMessages];
+  let totalInputTokens = 0; let totalOutputTokens = 0; let totalCost = 0;
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     onStatus(turn === 0 ? "connecting" : `processing:${turn}`);
     const res = await fetch("/api/audit", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:4000, system:systemOverride, tools:[{type:"web_search_20250305",name:"web_search"}], messages:msgs }) });
     if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err?.error?.message||`HTTP ${res.status}`); }
     const data = await res.json(); const { content, stop_reason } = data;
+    if (data._cost) {
+      totalInputTokens += data._cost.input_tokens;
+      totalOutputTokens += data._cost.output_tokens;
+      totalCost += data._cost.cost;
+    }
     msgs = [...msgs, { role:"assistant", content }];
-    if (stop_reason === "end_turn") { const text = content.filter(b=>b.type==="text").map(b=>b.text).join("\n").trim(); if (!text) throw new Error("Empty response."); return text; }
+    if (stop_reason === "end_turn") {
+      const text = content.filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+      if (!text) throw new Error("Empty response.");
+      return { text, tokens: { input: totalInputTokens, output: totalOutputTokens, cost: parseFloat(totalCost.toFixed(5)) } };
+    }
     if (stop_reason === "tool_use") {
       const wr = content.filter(b=>b.type==="web_search_tool_result"); if (wr.length > 0) { onStatus("analyzing"); continue; }
       const tu = content.filter(b=>b.type==="tool_use"); if (tu.length > 0) msgs = [...msgs, { role:"user", content:tu.map(t=>({type:"tool_result",tool_use_id:t.id,content:"OK"})) }];
       continue;
     }
-    const fb = content.filter(b=>b.type==="text").map(b=>b.text).join("\n").trim(); if (fb) return fb;
+    const fb = content.filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+    if (fb) return { text: fb, tokens: { input: totalInputTokens, output: totalOutputTokens, cost: parseFloat(totalCost.toFixed(5)) } };
     throw new Error(`Unexpected stop: ${stop_reason}`);
   }
   throw new Error("Too many steps.");
@@ -462,6 +473,27 @@ function DashboardView({ clients, history, onNewAudit, onSelectClient, onViewCli
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14}}>
       {stats.map((s,i)=>(<div key={i} style={{background:"#171c22",borderLeft:`4px solid ${s.color}`,padding:"16px 20px"}}><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,textTransform:"uppercase",letterSpacing:"0.15em",color:"#484f58",marginBottom:10}}>{s.label}</div><div style={{display:"flex",alignItems:"flex-end",gap:8}}><span style={{fontFamily:"'Supply',monospace",fontWeight:700,fontSize:30,color:s.color,lineHeight:1}}>{s.value}</span>{s.change&&<span style={{fontFamily:"'Cordia New',monospace",fontSize:8,textTransform:"uppercase",color:s.pulse?s.color:"#484f58",fontWeight:s.pulse?700:400,marginBottom:3}}>{s.change}</span>}</div></div>))}
     </div>
+    {/* Cost tracking section */}
+    {history.filter(h=>h.cost).length > 0 && (() => {
+      const auditsWithCost = history.filter(h=>h.cost);
+      const monthAudits = auditsWithCost.filter(h=>{const d=new Date(h.created_at);const n=new Date();return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();});
+      const totalMonth = monthAudits.reduce((a,b)=>a+(b.cost||0),0);
+      const totalAll = auditsWithCost.reduce((a,b)=>a+(b.cost||0),0);
+      const avgCost = auditsWithCost.length ? totalAll/auditsWithCost.length : 0;
+      const projected = totalMonth > 0 ? (totalMonth / new Date().getDate()) * 30 : 0;
+      return (<div style={{background:"#171c22",borderRadius:4,padding:"20px 24px",marginBottom:16}}>
+        <div style={{fontFamily:"'Supply',monospace",fontWeight:700,fontSize:12,textTransform:"uppercase",marginBottom:16,color:"#dfe2ec"}}>Seguimiento de Costos API</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12}}>
+          {[
+            {label:"Gasto este mes",value:`$${totalMonth.toFixed(3)}`,color:"#FF4500"},
+            {label:"Auditorías con datos",value:auditsWithCost.length,color:"#dfe2ec"},
+            {label:"Costo promedio",value:`$${avgCost.toFixed(4)}`,color:"#d29922"},
+            {label:"Proyección mensual",value:`$${projected.toFixed(3)}`,color:"#a2c9ff"},
+          ].map((s,i)=>(<div key={i} style={{background:"#0f141a",borderRadius:4,padding:"12px 16px"}}><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{s.label}</div><div style={{fontFamily:"'Supply',monospace",fontWeight:700,fontSize:20,color:s.color}}>{s.value}</div></div>))}
+        </div>
+      </div>);
+    })()}
+
     {clients.length===0?(<div style={{background:"#171c22",border:"1px dashed #31353c",borderRadius:8,padding:"56px 24px",textAlign:"center"}}><div style={{fontSize:36,marginBottom:14}}>🔥</div><div style={{fontFamily:"'Supply',monospace",fontWeight:700,fontSize:16,color:"#fff",textTransform:"uppercase",marginBottom:6}}>{t("emptyTitle")}</div><div style={{fontFamily:"'Cordia New',monospace",fontSize:12,color:"#484f58",lineHeight:1.7,marginBottom:24,maxWidth:360,margin:"0 auto 24px"}}>{t("emptyDesc")}</div><button onClick={onNewAudit} style={{background:"#FF4500",border:"none",color:"#fff",padding:"12px 28px",cursor:"pointer",fontFamily:"'Supply',monospace",fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.2em"}}>{t("startAudit")}</button></div>)
     :(<div style={{display:"flex",flexDirection:"column",gap:16}}>
       {chartClients.length>0&&(<div style={{background:"#171c22",padding:24,borderRadius:4}}>
@@ -544,11 +576,12 @@ function HistoryView({ history, clients, onLoad, onDelete }) {
     </div>
     <div style={{display:"flex",gap:8,marginBottom:28,flexWrap:"wrap"}}>{[["todos",t("filterAll")],["mes",t("filterMonth")],["cliente",t("filterClient")],["critico",t("filterCritical")]].map(([val,lbl])=>(<button key={val} onClick={()=>setFilter(val)} style={{padding:"5px 16px",borderRadius:20,border:`1px solid ${filter===val?"#FF4500":"rgba(255,255,255,0.1)"}`,background:filter===val?"rgba(255,69,0,0.05)":"transparent",color:filter===val?"#FF4500":"#484f58",fontFamily:"'Cordia New',monospace",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",cursor:"pointer"}}>{lbl}</button>))}</div>
     {filtered.length===0?(<div style={{textAlign:"center",padding:"48px 0",color:"#484f58"}}><div style={{fontSize:36,marginBottom:12}}>📭</div><div style={{fontFamily:"'Cordia New',monospace",fontSize:11,textTransform:"uppercase"}}>{search?t("emptySearch"):t("emptyHistory")}</div></div>)
-    :(<div style={{display:"flex",flexDirection:"column",gap:10}}>{filtered.map(entry=>(<div key={entry.id} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 2fr auto",alignItems:"center",gap:16,background:"#171c22",padding:"16px 20px",borderRadius:4,border:"1px solid rgba(255,255,255,0.03)"}}>
+    :(<div style={{display:"flex",flexDirection:"column",gap:10}}>{filtered.map(entry=>(<div key={entry.id} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 2fr 80px auto",alignItems:"center",gap:16,background:"#171c22",padding:"16px 20px",borderRadius:4,border:"1px solid rgba(255,255,255,0.03)"}}>
       <div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:3}}>{t("executionDate")}</div><div style={{fontFamily:"'Cordia New',monospace",fontSize:11}}>{new Date(entry.created_at).toLocaleDateString("es-MX",{day:"2-digit",month:"short",year:"numeric"})}</div></div>
       <div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:3}}>Client</div>{getClientName(entry.client_id)?<span style={{background:"#31353c",padding:"2px 8px",fontFamily:"'Cordia New',monospace",fontSize:10,color:"#FF4500",fontWeight:700,textTransform:"uppercase"}}>{getClientName(entry.client_id)}</span>:<span style={{color:"#484f58",fontSize:10}}>—</span>}</div>
       <div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:3}}>{t("performance")}</div>{entry.score?<ScoreBadge score={entry.score}/>:<span style={{color:"#484f58",fontSize:10}}>—</span>}</div>
       <div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:3}}>{t("queryContext")}</div><div style={{fontFamily:"'Cordia New',monospace",fontSize:11,color:"rgba(255,255,255,0.5)",fontStyle:"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>"{entry.query}"</div></div>
+      <div><div style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:3}}>Costo</div><div style={{fontFamily:"'Cordia New',monospace",fontSize:11,color:entry.cost?"#3fb950":"#484f58",fontWeight:entry.cost?700:400}}>{entry.cost?`$${entry.cost.toFixed(4)}`:"—"}</div></div>
       <div style={{display:"flex",gap:12,alignItems:"center"}}><button onClick={()=>onLoad(entry)} style={{background:"none",border:"none",color:"#FF4500",fontFamily:"'Cordia New',monospace",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",cursor:"pointer"}}>{t("viewBtn")}</button><button onClick={()=>onDelete(entry.id)} style={{background:"none",border:"none",color:"#484f58",cursor:"pointer",fontSize:13}} onMouseOver={e=>e.currentTarget.style.color="#E24B4A"} onMouseOut={e=>e.currentTarget.style.color="#484f58"}>🗑</button></div>
     </div>))}</div>)}
   </div>);
@@ -654,14 +687,14 @@ function App() {
       : getMasterPrompt(lang, pagespeedData, modules);
 
     try {
-      const result = await runAuditLoop(newMessages.map(m=>({role:m.role,content:m.content})), setStatusKey, systemPrompt);
+      const { text: result, tokens } = await runAuditLoop(newMessages.map(m=>({role:m.role,content:m.content})), setStatusKey, systemPrompt);
       setMessages(prev=>[...prev, { role:"assistant", content:result }]);
       const score = extractScore(result);
       const sector = extractSector(result);
       const quickWins = extractQuickWins(result);
       const clientId = activeClient?.id||null;
 
-      const saved = await dbSaveAudit({ query:userText, result, score:score||null, client_id:clientId }, session.user.id);
+      const saved = await dbSaveAudit({ query:userText, result, score:score||null, client_id:clientId, input_tokens:tokens?.input||null, output_tokens:tokens?.output||null, cost:tokens?.cost||null }, session.user.id);
       const newHistory = await dbLoadHistory(session.user.id); setHistory(newHistory);
 
       if (saved && quickWins.length) await dbSaveQuickWins(quickWins, saved.id, clientId, session.user.id);
@@ -784,7 +817,7 @@ function App() {
                         <div style={{display:"flex",gap:10}}>
                           <div style={{width:28,height:28,borderRadius:"50%",background:"#FF4500",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12}}>🔥</div>
                           <div style={{flex:1,minWidth:0}}>
-                            <div style={{marginBottom:10,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#FF4500",textTransform:"uppercase",letterSpacing:"0.15em",fontWeight:700}}>Ignitia AI // {t("reportLabel")}</span>{score&&<ScoreBadge score={score}/>}<span style={{marginLeft:"auto",fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58"}}>{t("saved")}</span></div>
+                            <div style={{marginBottom:10,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#FF4500",textTransform:"uppercase",letterSpacing:"0.15em",fontWeight:700}}>Ignitia AI // {t("reportLabel")}</span>{score&&<ScoreBadge score={score}/>}<span style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>{auditEntry?.cost&&<span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#3fb950"}}>💸 ${auditEntry.cost.toFixed(4)}</span>}<span style={{fontFamily:"'Cordia New',monospace",fontSize:9,color:"#484f58"}}>{t("saved")}</span></span></div>
                             {score&&<ScoreHero score={score} lang={lang}/>}
                             <ReportIndex sections={filteredSections} lang={lang}/>
                             {radar&&<RadarChart data={radar} lang={lang}/>}
