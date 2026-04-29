@@ -102,10 +102,25 @@ ${pagespeedData ? `- LCP (Largest Contentful Paint): cuánto tarda en aparecer e
 - Performance Score: la calificación general de velocidad de Google (0-100) — como una inspección de salud del sitio
 - Core Web Vitals: las 3 métricas oficiales de velocidad de Google que afectan directamente tu posicionamiento en búsquedas` : ""}`}
 
-${isEN?"At the end always include ALL of these tags (required for dashboard):":"Al final incluye SIEMPRE TODOS estos tags (requeridos para el dashboard):"}
-IGNITIA_SCORE: [${isEN?"digital presence score 1-10":"score de presencia digital 1-10"}]
-IGNITIA_SECTOR: [${isEN?"specific detected sector, max 4 words":"sector específico detectado, máximo 4 palabras"}]
-IGNITIA_RADAR: SEO=${isEN?"[1-10]":"[1-10]"},LOCAL=${isEN?"[1-10]":"[1-10]"},CONTENT=${isEN?"[1-10]":"[1-10]"},SPEED=${isEN?"[1-10]":"[1-10]"},SOCIAL=${isEN?"[1-10]":"[1-10]"}
+${isEN
+? `MANDATORY MACHINE TAGS — include these EXACTLY at the very end of your response, on their own lines, no exceptions:
+IGNITIA_SCORE: [integer 1-10, the digital presence score you assigned]
+IGNITIA_SECTOR: [specific sector detected, max 4 words]
+IGNITIA_RADAR: SEO=[1-10],LOCAL=[1-10],CONTENT=[1-10],SPEED=[1-10],SOCIAL=[1-10]
+
+Example (replace with real values):
+IGNITIA_SCORE: 6
+IGNITIA_SECTOR: Dental clinic
+IGNITIA_RADAR: SEO=5,LOCAL=7,CONTENT=4,SPEED=6,SOCIAL=3`
+: `TAGS OBLIGATORIOS DE MÁQUINA — incluye estos EXACTAMENTE al final de tu respuesta, en líneas propias, sin excepciones:
+IGNITIA_SCORE: [número entero 1-10, el score de presencia digital que asignaste]
+IGNITIA_SECTOR: [sector específico detectado, máximo 4 palabras]
+IGNITIA_RADAR: SEO=[1-10],LOCAL=[1-10],CONTENT=[1-10],SPEED=[1-10],SOCIAL=[1-10]
+
+Ejemplo (reemplaza con valores reales):
+IGNITIA_SCORE: 6
+IGNITIA_SECTOR: Clínica dental
+IGNITIA_RADAR: SEO=5,LOCAL=7,CONTENT=4,SPEED=6,SOCIAL=3`}
 
 ${isEN ? `ANTI-HALLUCINATION RULES (mandatory):
 1. VERIFIED DATA: Only present as fact what you found via web search. Always cite the source in parentheses: "947k visits/month (Similarweb, Feb 2026)".
