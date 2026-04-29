@@ -786,11 +786,18 @@ function App() {
 
   const handleSelectClient = async (client) => {
     setActiveClient(client);
+    setView("chat");
     const fresh = await dbLoadHistory(session.user.id);
     setHistory(fresh);
     const clientAudits = fresh.filter(h=>h.client_id===client.id);
-    if (clientAudits.length>0) { setReauditModal(client); setView("chat"); }
-    else { setMessages([]); setInput(`${t("starterAudit")} ${client.name}${client.url?" - "+client.url:""}`); setView("chat"); setTimeout(()=>textareaRef.current?.focus(),100); }
+    if (clientAudits.length>0) {
+      setMessages([]);
+      setTimeout(()=>setReauditModal(client), 50);
+    } else {
+      setMessages([]);
+      setInput(`${t("starterAudit")} ${client.name}${client.url?" - "+client.url:""}`);
+      setTimeout(()=>textareaRef.current?.focus(),100);
+    }
   };
 
   const handleCompare = async () => {
