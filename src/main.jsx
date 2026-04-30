@@ -42,6 +42,19 @@ async function dbGetClients(userId) {
   return data || [];
 }
 async function dbCreateClient(payload, userId) {
+  // Check if client with same URL already exists for this user
+  const url = payload.url?.trim().replace(/\/+$/, "").toLowerCase();
+  if (url) {
+    const { data: existing } = await supabase.from("clients").select("*")
+      .eq("user_id", userId)
+      .ilike("url", `%${url.replace("https://","").replace("http://","")}%`)
+      .maybeSingle();
+    if (existing) {
+      // Update existing client instead of creating duplicate
+      await supabase.from("clients").update({ last_score: payload.last_score, last_audit: payload.last_audit, sector: payload.sector || existing.sector }).eq("id", existing.id);
+      return { ...existing, last_score: payload.last_score, last_audit: payload.last_audit };
+    }
+  }
   const { data } = await supabase.from("clients").insert([{ ...payload, user_id: userId }]).select().single();
   return data;
 }
@@ -198,7 +211,8 @@ ${pagespeedData ? "- LCP, FCP, CLS, TBT, Speed Index, Performance Score, Core We
 2. Si inferiste algo, dilo: "Estimado basado en [fuente/observación]..."
 3. Si no encontraste un dato: "No pude verificar: [dato] — favor revisar manualmente."
 4. NUNCA inventes métricas, rankings, reseñas o cifras de tráfico sin fuente verificable.
-5. No uses conocimiento de tu entrenamiento para llenar vacíos — solo lo que el web search devolvió.`
+5. No uses conocimiento de tu entrenamiento para llenar vacíos — solo lo que el web search devolvió.
+6. URLS ESPECÍFICAS: Cuando detectes un problema en una página concreta (post sin editar, página rota, imagen faltante, etc.), incluye el URL exacto de esa página. Formato: "Problema detectado en: [URL]"`
     : `\nANTI-HALLUCINATION RULES (mandatory):
 1. Only present as fact what you found via web search. Always cite the source: "947k visits/month (Similarweb, Feb 2026)".
 2. If you inferred something, say so: "Estimated based on [source/observation]..."
@@ -207,13 +221,16 @@ ${pagespeedData ? "- LCP, FCP, CLS, TBT, Speed Index, Performance Score, Core We
 5. Do not use training data to fill gaps — only use what web search returned in this session.`;
 
   const mandatoryTags = es
-    ? `\nTAGS OBLIGATORIOS — incluye estos EXACTAMENTE al final de tu respuesta, en líneas propias:
-IGNITIA_SCORE: [número entero del 1 al 10]
+    ? `\n---
+TAGS DE SISTEMA — OBLIGATORIO INCLUIR AL FINAL, SIEMPRE, SIN EXCEPCIÓN:
+(Estos tags alimentan el dashboard. Si no los incluyes, el sistema no puede registrar la auditoría.)
+
+IGNITIA_SCORE: [el mismo número que pusiste en el Score de Presencia Digital, del 1 al 10]
 IGNITIA_SECTOR: [sector específico detectado, máximo 4 palabras]
 
-Ejemplo:
-IGNITIA_SCORE: 6
-IGNITIA_SECTOR: Clínica dental`
+Ejemplo concreto:
+IGNITIA_SCORE: 4
+IGNITIA_SECTOR: Hotel boutique`
     : `\nMANDATORY TAGS — include these EXACTLY at the end of your response, on their own lines:
 IGNITIA_SCORE: [integer from 1 to 10]
 IGNITIA_SECTOR: [specific detected sector, max 4 words]
@@ -227,8 +244,19 @@ IGNITIA_SECTOR: Dental clinic`;
 
 // ─── Parsers ───────────────────────────────────────────────────────
 function parseScore(text) {
-  const m = text.match(/IGNITIA_SCORE:\s*(\d+(?:\.\d+)?)/);
-  return m ? parseFloat(m[1]) : null;
+  // Try exact tag first
+  const tag = text.match(/IGNITIA_SCORE:\s*(\d+(?:\.\d+)?)/);
+  if (tag) return parseFloat(tag[1]);
+  // Try "Score de Presencia Digital: X/10" or "X/10" after score headers
+  const header = text.match(/Score de Presencia Digital[^\d]*(\d+(?:\.\d+)?)\s*\/\s*10/i);
+  if (header) return parseFloat(header[1]);
+  // Try "Digital Presence Score: X/10"
+  const en = text.match(/Digital Presence Score[^\d]*(\d+(?:\.\d+)?)\s*\/\s*10/i);
+  if (en) return parseFloat(en[1]);
+  // Try standalone "X/10" near score-related words
+  const near = text.match(/(?:score|calificaci[oó]n|puntuaci[oó]n)[^\d]*(\d+(?:\.\d+)?)\s*\/\s*10/i);
+  if (near) return parseFloat(near[1]);
+  return null;
 }
 function parseSector(text) {
   const m = text.match(/IGNITIA_SECTOR:\s*([^\n]+)/);
@@ -708,6 +736,37 @@ function History({ history, clients, onLoad, onDelete }) {
   );
 }
 
+// ─── Score Alert ───────────────────────────────────────────────────
+function ScoreAlert({ onSaveWithScore, onSaveWithout, onDiscard }) {
+  const [manualScore, setManualScore] = useState("");
+  const [entering, setEntering] = useState(false);
+  return (
+    <div style={{background:"#1a1000",border:"1px solid #d2992244",borderRadius:8,padding:"14px 18px",marginBottom:14,display:"flex",flexDirection:"column",gap:10}}>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:16}}>⚠️</span>
+        <span style={{fontFamily:"monospace",fontSize:11,fontWeight:700,color:"#d29922",textTransform:"uppercase",letterSpacing:".1em"}}>Score no detectado en este reporte</span>
+      </div>
+      <div style={{fontFamily:"monospace",fontSize:11,color:"#8b949e",lineHeight:1.5}}>
+        Claude no incluyó el tag <code style={{background:"#31353c",padding:"1px 5px",borderRadius:3,color:"#a2c9ff"}}>IGNITIA_SCORE</code> en su respuesta. ¿Qué quieres hacer?
+      </div>
+      {entering ? (
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <span style={{fontFamily:"monospace",fontSize:11,color:"#484f58"}}>Score (1-10):</span>
+          <input type="number" min="1" max="10" value={manualScore} onChange={e=>setManualScore(e.target.value)} placeholder="Ej: 4" style={{width:70,background:"#171c22",border:"1px solid #31353c",borderRadius:4,padding:"5px 8px",color:"#fff",fontFamily:"monospace",fontSize:13,outline:"none",textAlign:"center"}}/>
+          <button onClick={()=>{const s=parseFloat(manualScore);if(s>=1&&s<=10)onSaveWithScore(s);}} disabled={!manualScore||parseFloat(manualScore)<1||parseFloat(manualScore)>10} style={{background:"#FF4500",border:"none",color:"#fff",padding:"5px 14px",borderRadius:5,cursor:"pointer",fontFamily:"monospace",fontSize:11,fontWeight:700,opacity:(!manualScore||parseFloat(manualScore)<1||parseFloat(manualScore)>10)?0.4:1}}>Guardar →</button>
+          <button onClick={()=>setEntering(false)} style={{background:"transparent",border:"1px solid #31353c",color:"#484f58",padding:"5px 10px",borderRadius:5,cursor:"pointer",fontFamily:"monospace",fontSize:10}}>Cancelar</button>
+        </div>
+      ) : (
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button onClick={()=>setEntering(true)} style={{background:"#FF450022",border:"1px solid #FF450044",color:"#FF4500",padding:"6px 14px",borderRadius:5,cursor:"pointer",fontFamily:"monospace",fontSize:10,fontWeight:700,textTransform:"uppercase"}}>✏️ Ingresar score manualmente</button>
+          <button onClick={onSaveWithout} style={{background:"transparent",border:"1px solid #31353c",color:"#484f58",padding:"6px 14px",borderRadius:5,cursor:"pointer",fontFamily:"monospace",fontSize:10,textTransform:"uppercase"}}>Guardar sin score</button>
+          <button onClick={onDiscard} style={{background:"transparent",border:"none",color:"#484f58",padding:"6px 10px",cursor:"pointer",fontFamily:"monospace",fontSize:10,textTransform:"uppercase"}}>Ignorar</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Chat ──────────────────────────────────────────────────────────
 function Chat({ session, clients, history, onClientsChange, onHistoryChange }) {
   const [messages, setMessages] = useState([]);
@@ -722,6 +781,7 @@ function Chat({ session, clients, history, onClientsChange, onHistoryChange }) {
   const [usePageSpeed, setUsePageSpeed] = useState(false);
   const [useSentiment, setUseSentiment] = useState(false);
   const [addCtx, setAddCtx] = useState(false);
+  const [scoreAlert, setScoreAlert] = useState(null); // {result, query, sector, tokens}
   const [ctxInput, setCtxInput] = useState("");
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -772,7 +832,14 @@ function Chat({ session, clients, history, onClientsChange, onHistoryChange }) {
 
       setMessages(prev => [...prev, { role: "assistant", content: result, auditId: saved?.id, score }]);
 
-      if (!activeClient && score) setSaveModal({ query: q, result, score, sector });
+      if (!activeClient) {
+        if (score) {
+          setSaveModal({ query: q, result, score, sector });
+        } else {
+          // No score detected — show alert so user can decide
+          setScoreAlert({ query: q, result, sector, tokens });
+        }
+      }
 
     } catch (e) {
       setMessages(prev => [...prev, { role: "assistant", content: `## ❌ Error\n\n**${e.message}**\n\n- Verifica tu conexión\n- Verifica que la URL esté completa` }]);
@@ -788,6 +855,27 @@ function Chat({ session, clients, history, onClientsChange, onHistoryChange }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 100px)" }}>
+      {scoreAlert && (
+        <ScoreAlert
+          onSaveWithScore={async (manualScore) => {
+            const data = scoreAlert;
+            setScoreAlert(null);
+            const saved = await dbSaveAudit({ query: data.query, result: data.result, score: manualScore, client_id: null, input_tokens: data.tokens?.input || null, output_tokens: data.tokens?.output || null, cost: data.tokens?.cost || null, model }, session.user.id);
+            const freshHistory = await dbGetAudits(session.user.id);
+            onHistoryChange(freshHistory);
+            setSaveModal({ query: data.query, result: data.result, score: manualScore, sector: data.sector });
+          }}
+          onSaveWithout={async () => {
+            const data = scoreAlert;
+            setScoreAlert(null);
+            await dbSaveAudit({ query: data.query, result: data.result, score: null, client_id: null, input_tokens: data.tokens?.input || null, output_tokens: data.tokens?.output || null, cost: data.tokens?.cost || null, model }, session.user.id);
+            const freshHistory = await dbGetAudits(session.user.id);
+            onHistoryChange(freshHistory);
+            setSaveModal({ query: data.query, result: data.result, score: null, sector: data.sector });
+          }}
+          onDiscard={() => setScoreAlert(null)}
+        />
+      )}
       {saveModal && (
         <SaveClientModal
           defaultName={saveModal.query.match(/:\s*([^-\n]+)/)?.[1]?.trim() || ""}
@@ -1006,15 +1094,15 @@ function App() {
     }
   };
 
-const handleDeleteAudit = async (id) => {
-  await dbDeleteAudit(id);
-  const [freshHistory, freshClients] = await Promise.all([
-    dbGetAudits(session.user.id),
-    dbGetClients(session.user.id),
-  ]);
-  setHistory(freshHistory);
-  setClients(freshClients);
-};
+  const handleDeleteAudit = async (id) => {
+    await dbDeleteAudit(id);
+    const [freshHistory, freshClients] = await Promise.all([
+      dbGetAudits(session.user.id),
+      dbGetClients(session.user.id),
+    ]);
+    setHistory(freshHistory);
+    setClients(freshClients);
+  };
 
   if (authLoading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#060a10" }}><style>{G}</style><div style={{ fontFamily: "monospace", fontSize: 11, color: "#484f58", textTransform: "uppercase" }}>Cargando...</div></div>;
 
