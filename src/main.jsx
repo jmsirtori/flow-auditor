@@ -73,7 +73,9 @@ async function dbDeleteAudit(id) {
   await supabase.from("audits").delete().eq("id", id);
 }
 async function dbSaveCost(payload, userId) {
-  await supabase.from("costs").insert([{ ...payload, user_id: userId }]);
+  const { error } = await supabase.from("costs").insert([{ ...payload, user_id: userId }]);
+  if (error) console.error("Error saving cost:", error);
+  else console.log("Cost saved:", payload.cost);
 }
 async function dbGetCosts(userId) {
   const { data } = await supabase.from("costs").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(200);
@@ -836,15 +838,15 @@ function Chat({ session, clients, history, onClientsChange, onHistoryChange, onC
 
       const saved = await dbSaveAudit({ query: q, result, score: score || null, client_id: clientId, input_tokens: tokens?.input || null, output_tokens: tokens?.output || null, cost: tokens?.cost || null, model }, session.user.id);
       // Always save cost independently so it persists even if audit is deleted
-      if (tokens?.cost) {
+      if (tokens != null) {
         await dbSaveCost({
           client_id: clientId || null,
           client_name: activeClient?.name || null,
           audit_id: saved?.id || null,
           model,
-          input_tokens: tokens.input,
-          output_tokens: tokens.output,
-          cost: tokens.cost,
+          input_tokens: tokens.input || 0,
+          output_tokens: tokens.output || 0,
+          cost: tokens.cost || 0,
         }, session.user.id);
       }
 
