@@ -266,7 +266,15 @@ function parseQuickWins(text) {
   return text.split("\n").filter(l => /^QW\d+:\s*.+/.test(l)).map(l => l.replace(/^QW\d+:\s*/, "").trim());
 }
 function cleanForDisplay(text) {
-  return text.replace(/IGNITIA_SCORE:\s*\d+(?:\.\d+)?/g, "").replace(/IGNITIA_SECTOR:\s*[^\n]+/g, "").replace(/QW\d+:\s*[^\n]+/g, "").trim();
+  // Only remove machine tags - keep QW lines in body so report sections stay intact
+  // QW tags outside sections (after last ##) are removed to avoid clutter
+  let clean = text
+    .replace(/IGNITIA_SCORE:\s*\d+(?:\.\d+)?/g, "")
+    .replace(/IGNITIA_SECTOR:\s*[^\n]+/g, "")
+    .trim();
+  // Remove QW tags only if they appear as standalone lines (not inside a table row)
+  clean = clean.replace(/^QW\d+:\s*.+$/gm, "").replace(/\n{3,}/g, "\n\n").trim();
+  return clean;
 }
 
 // ─── Markdown renderer ─────────────────────────────────────────────
