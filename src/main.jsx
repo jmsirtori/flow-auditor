@@ -856,7 +856,7 @@ function Chat({ session, clients, history, onClientsChange, onHistoryChange, onC
 
       const freshHistory = await dbGetAudits(session.user.id);
       onHistoryChange(freshHistory);
-      if (tokens?.cost && onCostsChange) dbGetCosts(session.user.id).then(onCostsChange);
+      if (onCostsChange) dbGetCosts(session.user.id).then(onCostsChange);
 
       setMessages(prev => [...prev, { role: "assistant", content: result, auditId: saved?.id, score }]);
 
@@ -889,6 +889,10 @@ function Chat({ session, clients, history, onClientsChange, onHistoryChange, onC
             const data = scoreAlert;
             setScoreAlert(null);
             const saved = await dbSaveAudit({ query: data.query, result: data.result, score: manualScore, client_id: null, input_tokens: data.tokens?.input || null, output_tokens: data.tokens?.output || null, cost: data.tokens?.cost || null, model }, session.user.id);
+            if (data.tokens?.cost) {
+              await dbSaveCost({ client_id: null, client_name: null, audit_id: saved?.id || null, model, input_tokens: data.tokens.input, output_tokens: data.tokens.output, cost: data.tokens.cost }, session.user.id);
+              if (onCostsChange) dbGetCosts(session.user.id).then(onCostsChange);
+            }
             const freshHistory = await dbGetAudits(session.user.id);
             onHistoryChange(freshHistory);
             setSaveModal({ query: data.query, result: data.result, score: manualScore, sector: data.sector });
@@ -896,7 +900,11 @@ function Chat({ session, clients, history, onClientsChange, onHistoryChange, onC
           onSaveWithout={async () => {
             const data = scoreAlert;
             setScoreAlert(null);
-            await dbSaveAudit({ query: data.query, result: data.result, score: null, client_id: null, input_tokens: data.tokens?.input || null, output_tokens: data.tokens?.output || null, cost: data.tokens?.cost || null, model }, session.user.id);
+            const saved = await dbSaveAudit({ query: data.query, result: data.result, score: null, client_id: null, input_tokens: data.tokens?.input || null, output_tokens: data.tokens?.output || null, cost: data.tokens?.cost || null, model }, session.user.id);
+            if (data.tokens?.cost) {
+              await dbSaveCost({ client_id: null, client_name: null, audit_id: saved?.id || null, model, input_tokens: data.tokens.input, output_tokens: data.tokens.output, cost: data.tokens.cost }, session.user.id);
+              if (onCostsChange) dbGetCosts(session.user.id).then(onCostsChange);
+            }
             const freshHistory = await dbGetAudits(session.user.id);
             onHistoryChange(freshHistory);
             setSaveModal({ query: data.query, result: data.result, score: null, sector: data.sector });
