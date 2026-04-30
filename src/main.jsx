@@ -346,7 +346,7 @@ async function runAudit(messages, onStatus, systemPrompt, model) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
-        max_tokens: model.includes("haiku") ? 2000 : 8000,
+        max_tokens: model.includes("haiku") ? 3000 : 16000,
         system: systemPrompt,
         tools: [{ type: "web_search_20250305", name: "web_search" }],
         messages: msgs,
@@ -1069,7 +1069,7 @@ function Chat({ session, clients, history, onClientsChange, onHistoryChange, onC
 
 
 // ─── Costs View ────────────────────────────────────────────────────
-function CostsView({ costs, clients }) {
+function CostsView({ costs, clients, onRefresh }) {
   const now = new Date();
   const thisMonth = costs.filter(c => {
     const d = new Date(c.created_at);
@@ -1106,9 +1106,12 @@ function CostsView({ costs, clients }) {
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: "'Supply',monospace", fontWeight: 700, fontSize: 30, color: "#fff", textTransform: "uppercase", marginBottom: 4 }}>Costos API</div>
-        <div style={{ fontFamily: "monospace", fontSize: 9, color: "#484f58", textTransform: "uppercase", letterSpacing: ".2em" }}>{costs.length} registros · incluye auditorías borradas</div>
+      <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontFamily: "'Supply',monospace", fontWeight: 700, fontSize: 30, color: "#fff", textTransform: "uppercase", marginBottom: 4 }}>Costos API</div>
+          <div style={{ fontFamily: "monospace", fontSize: 9, color: "#484f58", textTransform: "uppercase", letterSpacing: ".2em" }}>{costs.length} registros · incluye auditorías borradas</div>
+        </div>
+        <button onClick={onRefresh} style={{ background: "transparent", border: "1px solid #31353c", color: "#484f58", padding: "6px 14px", borderRadius: 6, cursor: "pointer", fontFamily: "monospace", fontSize: 10, textTransform: "uppercase" }}>↻ Actualizar</button>
       </div>
 
       {costs.length === 0 ? (
@@ -1267,6 +1270,13 @@ function App() {
   const [costs, setCosts] = useState([]);
   const [viewingAudit, setViewingAudit] = useState(null);
 
+  // Auto-reload costs when navigating to costs view
+  useEffect(() => {
+    if (view === "costs" && session) {
+      dbGetCosts(session.user.id).then(setCosts);
+    }
+  }, [view]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); setAuthLoading(false); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => setSession(s));
@@ -1335,7 +1345,7 @@ function App() {
                 />
               )}
 
-              {view === "costs" && <CostsView costs={costs} clients={clients} />}
+              {view === "costs" && <CostsView costs={costs} clients={clients} onRefresh={() => dbGetCosts(session.user.id).then(setCosts)} />}
 
               {view === "history" && (
                 <History
