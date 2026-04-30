@@ -1006,11 +1006,15 @@ function App() {
     }
   };
 
-  const handleDeleteAudit = async (id) => {
-    await dbDeleteAudit(id);
-    const fresh = await dbGetAudits(session.user.id);
-    setHistory(fresh);
-  };
+const handleDeleteAudit = async (id) => {
+  await dbDeleteAudit(id);
+  const [freshHistory, freshClients] = await Promise.all([
+    dbGetAudits(session.user.id),
+    dbGetClients(session.user.id),
+  ]);
+  setHistory(freshHistory);
+  setClients(freshClients);
+};
 
   if (authLoading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#060a10" }}><style>{G}</style><div style={{ fontFamily: "monospace", fontSize: 11, color: "#484f58", textTransform: "uppercase" }}>Cargando...</div></div>;
 
