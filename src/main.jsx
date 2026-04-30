@@ -72,6 +72,13 @@ async function dbSaveAudit(payload, userId) {
 async function dbDeleteAudit(id) {
   await supabase.from("audits").delete().eq("id", id);
 }
+async function dbSaveCost(payload, userId) {
+  await supabase.from("costs").insert([{ ...payload, user_id: userId }]);
+}
+async function dbGetCosts(userId) {
+  const { data } = await supabase.from("costs").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(200);
+  return data || [];
+}
 async function dbGetClientAudits(clientId) {
   const { data } = await supabase.from("audits").select("*").eq("client_id", clientId).order("created_at", { ascending: false });
   return data || [];
@@ -337,7 +344,7 @@ async function runAudit(messages, onStatus, systemPrompt, model) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
-        max_tokens: model.includes("haiku") ? 2000 : 4000,
+        max_tokens: model.includes("haiku") ? 2000 : 8000,
         system: systemPrompt,
         tools: [{ type: "web_search_20250305", name: "web_search" }],
         messages: msgs,
@@ -587,7 +594,7 @@ function Login() {
 
 // ─── Sidebar ───────────────────────────────────────────────────────
 function Sidebar({ view, setView, session, onLogout }) {
-  const nav = [{ id: "dashboard", icon: "▦", label: "Vista General" }, { id: "chat", icon: ">_", label: "Nueva Auditoría" }, { id: "history", icon: "◷", label: "Historial" }];
+  const nav = [{ id: "dashboard", icon: "▦", label: "Vista General" }, { id: "chat", icon: ">_", label: "Nueva Auditoría" }, { id: "history", icon: "◷", label: "Historial" }, { id: "costs", icon: "💸", label: "Costos" }];
   return (
     <aside style={{ width: 220, position: "fixed", left: 0, top: 0, bottom: 0, zIndex: 40, background: "#0f141a", borderRight: "1px solid rgba(255,69,0,0.1)", display: "flex", flexDirection: "column", paddingTop: 72 }}>
       <div style={{ padding: "0 20px 18px" }}>
@@ -776,7 +783,7 @@ function ScoreAlert({ onSaveWithScore, onSaveWithout, onDiscard }) {
 }
 
 // ─── Chat ──────────────────────────────────────────────────────────
-function Chat({ session, clients, history, onClientsChange, onHistoryChange }) {
+function Chat({ session, clients, history, onClientsChange, onHistoryChange, onCostsChange }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -828,6 +835,18 @@ function Chat({ session, clients, history, onClientsChange, onHistoryChange }) {
       const clientId = activeClient?.id || null;
 
       const saved = await dbSaveAudit({ query: q, result, score: score || null, client_id: clientId, input_tokens: tokens?.input || null, output_tokens: tokens?.output || null, cost: tokens?.cost || null, model }, session.user.id);
+      // Always save cost independently so it persists even if audit is deleted
+      if (tokens?.cost) {
+        await dbSaveCost({
+          client_id: clientId || null,
+          client_name: activeClient?.name || null,
+          audit_id: saved?.id || null,
+          model,
+          input_tokens: tokens.input,
+          output_tokens: tokens.output,
+          cost: tokens.cost,
+        }, session.user.id);
+      }
 
       if (clientId && score) {
         await dbUpdateClient(clientId, { last_score: score, last_audit: new Date().toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" }) }, session.user.id);
@@ -837,6 +856,7 @@ function Chat({ session, clients, history, onClientsChange, onHistoryChange }) {
 
       const freshHistory = await dbGetAudits(session.user.id);
       onHistoryChange(freshHistory);
+      if (tokens?.cost && onCostsChange) dbGetCosts(session.user.id).then(onCostsChange);
 
       setMessages(prev => [...prev, { role: "assistant", content: result, auditId: saved?.id, score }]);
 
@@ -1037,6 +1057,163 @@ function Chat({ session, clients, history, onClientsChange, onHistoryChange }) {
   );
 }
 
+
+// ─── Costs View ────────────────────────────────────────────────────
+function CostsView({ costs, clients }) {
+  const now = new Date();
+  const thisMonth = costs.filter(c => {
+    const d = new Date(c.created_at);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+
+  const totalMonth = thisMonth.reduce((a, b) => a + (b.cost || 0), 0);
+  const totalAll = costs.reduce((a, b) => a + (b.cost || 0), 0);
+  const avgCost = costs.length ? totalAll / costs.length : 0;
+  const projected = thisMonth.length && now.getDate() > 0 ? (totalMonth / now.getDate()) * 30 : 0;
+
+  // By client
+  const byClient = {};
+  costs.forEach(c => {
+    const key = c.client_name || "Sin cliente";
+    if (!byClient[key]) byClient[key] = { name: key, total: 0, count: 0 };
+    byClient[key].total += c.cost || 0;
+    byClient[key].count += 1;
+  });
+  const clientList = Object.values(byClient).sort((a, b) => b.total - a.total);
+  const maxClientCost = clientList[0]?.total || 1;
+
+  // By model
+  const byModel = {};
+  costs.forEach(c => {
+    const key = c.model?.includes("haiku") ? "Haiku 4.5" : "Sonnet 4.6";
+    if (!byModel[key]) byModel[key] = { label: key, total: 0, count: 0, color: c.model?.includes("haiku") ? "#3fb950" : "#FF4500" };
+    byModel[key].total += c.cost || 0;
+    byModel[key].count += 1;
+  });
+  const modelList = Object.values(byModel);
+  const totalModelCost = modelList.reduce((a, b) => a + b.total, 0);
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontFamily: "'Supply',monospace", fontWeight: 700, fontSize: 30, color: "#fff", textTransform: "uppercase", marginBottom: 4 }}>Costos API</div>
+        <div style={{ fontFamily: "monospace", fontSize: 9, color: "#484f58", textTransform: "uppercase", letterSpacing: ".2em" }}>{costs.length} registros · incluye auditorías borradas</div>
+      </div>
+
+      {costs.length === 0 ? (
+        <div style={{ background: "#171c22", border: "1px dashed #31353c", borderRadius: 8, padding: "48px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>💸</div>
+          <div style={{ fontFamily: "'Supply',monospace", fontWeight: 700, fontSize: 15, color: "#fff", textTransform: "uppercase", marginBottom: 8 }}>Sin registros aún</div>
+          <div style={{ fontFamily: "monospace", fontSize: 11, color: "#484f58", lineHeight: 1.7 }}>Los costos se registrarán automáticamente con cada auditoría</div>
+        </div>
+      ) : (
+        <>
+          {/* Section 1 — Monthly summary */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 24 }}>
+            {[
+              { label: "Gasto este mes", value: `$${totalMonth.toFixed(4)}`, color: "#FF4500", sub: `${thisMonth.length} auditorías` },
+              { label: "Costo promedio", value: `$${avgCost.toFixed(4)}`, color: "#d29922", sub: "por auditoría" },
+              { label: "Proyección mensual", value: `$${projected.toFixed(4)}`, color: "#a2c9ff", sub: "a este ritmo" },
+              { label: "Total histórico", value: `$${totalAll.toFixed(4)}`, color: "#484f58", sub: `${costs.length} auditorías` },
+            ].map((s, i) => (
+              <div key={i} style={{ background: "#0f141a", border: "1px solid #21262d", borderRadius: 8, padding: "14px 16px" }}>
+                <div style={{ fontFamily: "monospace", fontSize: 9, color: "#484f58", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 8 }}>{s.label}</div>
+                <div style={{ fontFamily: "'Supply',monospace", fontWeight: 700, fontSize: 22, color: s.color, marginBottom: 4 }}>{s.value}</div>
+                <div style={{ fontFamily: "monospace", fontSize: 9, color: "#484f58" }}>{s.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Section 2 — By client */}
+          {clientList.length > 0 && (
+            <div style={{ background: "#0f141a", border: "1px solid #21262d", borderRadius: 8, padding: "16px 20px", marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Supply',monospace", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "#dfe2ec", marginBottom: 14, letterSpacing: ".1em" }}>Por cliente</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {clientList.map((c, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: "monospace", fontSize: 11, color: "#dfe2ec", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>{c.name}</div>
+                      <div style={{ height: 4, background: "#21262d", borderRadius: 2, overflow: "hidden" }}>
+                        <div style={{ height: "100%", background: "#FF4500", borderRadius: 2, width: `${(c.total / maxClientCost) * 100}%`, transition: "width .5s ease" }} />
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "#3fb950" }}>${c.total.toFixed(4)}</div>
+                      <div style={{ fontFamily: "monospace", fontSize: 9, color: "#484f58" }}>{c.count} audit{c.count !== 1 ? "s" : ""}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section 3 — By model */}
+          {modelList.length > 0 && (
+            <div style={{ background: "#0f141a", border: "1px solid #21262d", borderRadius: 8, padding: "16px 20px", marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Supply',monospace", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "#dfe2ec", marginBottom: 14, letterSpacing: ".1em" }}>Por modelo</div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {modelList.map((m, i) => (
+                  <div key={i} style={{ flex: 1, minWidth: 140, background: `${m.color}10`, border: `1px solid ${m.color}33`, borderRadius: 8, padding: "14px 16px" }}>
+                    <div style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: m.color, marginBottom: 8 }}>{m.label}</div>
+                    <div style={{ fontFamily: "'Supply',monospace", fontWeight: 700, fontSize: 20, color: "#fff", marginBottom: 4 }}>${m.total.toFixed(4)}</div>
+                    <div style={{ fontFamily: "monospace", fontSize: 9, color: "#484f58", marginBottom: 8 }}>{m.count} auditorías</div>
+                    <div style={{ height: 4, background: "#21262d", borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ height: "100%", background: m.color, borderRadius: 2, width: `${totalModelCost > 0 ? (m.total / totalModelCost) * 100 : 0}%` }} />
+                    </div>
+                    <div style={{ fontFamily: "monospace", fontSize: 9, color: m.color, marginTop: 4 }}>
+                      {totalModelCost > 0 ? Math.round((m.total / totalModelCost) * 100) : 0}% del gasto total
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section 4 — Last 10 records */}
+          <div style={{ background: "#0f141a", border: "1px solid #21262d", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ padding: "14px 20px", borderBottom: "1px solid #21262d" }}>
+              <div style={{ fontFamily: "'Supply',monospace", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "#dfe2ec", letterSpacing: ".1em" }}>Últimos registros</div>
+              <div style={{ fontFamily: "monospace", fontSize: 9, color: "#484f58", marginTop: 2 }}>Incluye auditorías eliminadas</div>
+            </div>
+            <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "monospace", minWidth: 480 }}>
+                <thead>
+                  <tr style={{ background: "#060a10" }}>
+                    {["Fecha", "Cliente", "Modelo", "Tokens entrada", "Tokens salida", "Costo"].map(h => (
+                      <th key={h} style={{ padding: "8px 14px", textAlign: "left", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".1em", color: "#484f58", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {costs.slice(0, 10).map((c, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                      <td style={{ padding: "10px 14px", fontSize: 11, color: "#dfe2ec", whiteSpace: "nowrap" }}>{new Date(c.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        {c.client_name
+                          ? <span style={{ background: "#31353c", padding: "2px 8px", fontSize: 10, color: "#FF4500", fontWeight: 700, textTransform: "uppercase", borderRadius: 3 }}>{c.client_name}</span>
+                          : <span style={{ color: "#484f58", fontSize: 10 }}>—</span>}
+                      </td>
+                      <td style={{ padding: "10px 14px" }}>
+                        <span style={{ fontFamily: "monospace", fontSize: 10, color: c.model?.includes("haiku") ? "#3fb950" : "#FF4500", fontWeight: 700 }}>
+                          {c.model?.includes("haiku") ? "Haiku" : "Sonnet"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "10px 14px", fontSize: 11, color: "#484f58" }}>{c.input_tokens?.toLocaleString() || "—"}</td>
+                      <td style={{ padding: "10px 14px", fontSize: 11, color: "#484f58" }}>{c.output_tokens?.toLocaleString() || "—"}</td>
+                      <td style={{ padding: "10px 14px", fontSize: 12, fontWeight: 700, color: "#3fb950" }}>${(c.cost || 0).toFixed(5)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── StarterCard ───────────────────────────────────────────────────
 function StarterCard({ icon, label, fields, onSubmit }) {
   const [open, setOpen] = useState(false);
@@ -1077,6 +1254,7 @@ function App() {
   const [clients, setClients] = useState([]);
   const [history, setHistory] = useState([]);
   const [chatKey, setChatKey] = useState(0);
+  const [costs, setCosts] = useState([]);
   const [viewingAudit, setViewingAudit] = useState(null);
 
   useEffect(() => {
@@ -1089,6 +1267,7 @@ function App() {
     if (!session) return;
     dbGetClients(session.user.id).then(setClients);
     dbGetAudits(session.user.id).then(setHistory);
+    dbGetCosts(session.user.id).then(setCosts);
   }, [session]);
 
   const handleViewClient = async (client) => {
@@ -1146,6 +1325,8 @@ function App() {
                 />
               )}
 
+              {view === "costs" && <CostsView costs={costs} clients={clients} />}
+
               {view === "history" && (
                 <History
                   history={history}
@@ -1163,6 +1344,7 @@ function App() {
                   history={history}
                   onClientsChange={setClients}
                   onHistoryChange={setHistory}
+                  onCostsChange={setCosts}
                 />
               )}
 
